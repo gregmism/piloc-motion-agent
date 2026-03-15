@@ -75,7 +75,13 @@ else
   print_ok ".env déjà présent"
 fi
 
-# ── 6. Résumé ────────────────────────────────
+# ── 6. Skills Claude Code ────────────────────
+print_step "Installation du skill remotion-best-practices"
+
+claude skills sync 2>/dev/null && print_ok "Skill remotion-best-practices installé" \
+  || print_warn "Impossible d'installer le skill automatiquement. Lance manuellement : claude skills sync"
+
+# ── 7. Résumé ────────────────────────────────
 echo ""
 echo -e "${BOLD}────────────────────────────────────${RESET}"
 echo -e "${GREEN}${BOLD}✓ Setup terminé !${RESET}"
