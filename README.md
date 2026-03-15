@@ -10,7 +10,7 @@ Agent de création vidéo marketing automatisé. Tu fournis un prototype HTML ou
 |---|---|---|
 | **Node.js** | 18+ | [nodejs.org](https://nodejs.org/) — prends la version LTS |
 | **Claude Code** | dernière | installé automatiquement par `setup.sh` |
-| **Clé API Anthropic** | — | [console.anthropic.com](https://console.anthropic.com/) |
+| **Compte Claude** | Pro ou Max | [claude.ai](https://claude.ai/) — connexion via navigateur au premier lancement |
 
 > **Voix off (optionnel)** — clé ElevenLabs si tu veux une narration générée automatiquement. Le rendu fonctionne sans.
 
@@ -25,12 +25,6 @@ cd piloc-motion-agent
 ```
 
 Le script installe Claude Code, les dépendances Remotion, et crée les dossiers `in/` et `out/`.
-
-### Configurer ta clé Anthropic
-
-```bash
-claude config set api_key sk-ant-XXXXXXXXXXXXXXXX
-```
 
 ---
 
