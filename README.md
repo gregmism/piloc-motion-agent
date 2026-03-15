@@ -82,6 +82,26 @@ Puis précise `Voix off : Oui` dans ton prompt. L'agent génère et synchronise 
 
 ---
 
+## Mise à jour
+
+Quand une nouvelle version est disponible, récupère-la en une commande :
+
+```bash
+cd piloc-motion-agent
+git pull
+```
+
+Cela met à jour les instructions de l'agent, les patterns de code et les règles Remotion. Tes fichiers personnels (`in/`, `out/`, `.env`) ne sont jamais touchés.
+
+> **Si git pull échoue** avec un message de conflit, c'est qu'un fichier local a été modifié. Résous-le avec :
+> ```bash
+> git stash    # met tes modifications de côté
+> git pull     # applique la mise à jour
+> git stash pop  # remet tes modifications
+> ```
+
+---
+
 ## Render manuel
 
 Si tu veux re-rendre une composition existante sans relancer l'agent :
