@@ -19,12 +19,14 @@ Agent de création vidéo marketing automatisé. Tu fournis un prototype HTML ou
 ## Installation (une seule fois)
 
 ```bash
-git clone https://github.com/[ton-org]/piloc-motion-agent
+git clone https://github.com/gregmism/piloc-motion-agent
 cd piloc-motion-agent
 ./setup.sh
 ```
 
-Le script installe Claude Code, les dépendances Remotion, et crée les dossiers `in/` et `out/`.
+Le script installe Claude Code, les dépendances Remotion (via `npm install`), et crée les dossiers `in/` et `out/`.
+
+> **Node.js n'est pas installé automatiquement.** Si tu ne l'as pas, télécharge la version LTS sur [nodejs.org](https://nodejs.org/) avant de lancer `setup.sh`.
 
 ---
 
