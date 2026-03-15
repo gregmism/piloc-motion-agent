@@ -30,7 +30,8 @@ const os   = require("os");
 const API_KEY  = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "pNInz6obpgDQGcFmaJgB"; // Adam
 const FPS      = 30;
-const FFMPEG   = "/opt/homebrew/bin/ffmpeg";
+// Utilise le ffmpeg embarqué dans Remotion — pas besoin d'installation système
+const FFMPEG   = "npx remotion ffmpeg";
 
 const VIDEO_IN  = path.resolve(__dirname, "../out/2026-03-15-campagnes-yt.mp4");
 const VIDEO_OUT = path.resolve(__dirname, "../out/2026-03-15-campagnes-yt-final.mp4");
