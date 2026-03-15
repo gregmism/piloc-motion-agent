@@ -1,0 +1,259 @@
+# HTML Story Extraction Guide
+
+When the user provides an HTML prototype, this guide explains how to read it for everything you need to build the video. The HTML is a **data source and state map** — not a visual template to reproduce.
+
+---
+
+## Why you extract, not replicate
+
+| Replicating the HTML | Extracting the story |
+|---------------------|---------------------|
+| Full app chrome (nav, sidebar, breadcrumbs) | Only the 3–5 elements that prove the value |
+| Every form field | 2–3 most illustrative fields, pre-filled |
+| Real browser font sizes (13–15px) | ~1.5× larger (floating on a 1080p canvas) |
+| App-level information density | Marketing-level clarity |
+| "What the product looks like" | "What makes the product worth watching" |
+
+---
+
+## Step 1 — Extract the State Machine
+
+The most important thing to extract from the HTML is the **state machine** — what states the feature goes through, in what order, triggered by what events.
+
+### What to look for
+
+Scan for:
+- **Badge / status values** — e.g. `pending`, `validated`, `active`, `incident`, `paid`, `expired`. These become the animation beats.
+- **Status labels** in the HTML text — exact strings you'll use verbatim in Badge components
+- **Conditional visibility** — classes like `hidden`, `d-none`, or style switches — these reveal which states can coexist or replace each other
+- **Color coding** — which status maps to which color (success green, error red, warning yellow, muted grey)
+
+### Output: State Machine Map
+
+Write this before building anything:
+
+```
+States (in order): En attente → Validée → Paiement reçu → Incident
+Triggers: user validates card → first payment collected → payment fails
+Key moment: Incident — this is the "value moment" (the system catches it)
+Badge types: pending | validated | paid | incident | failed | scheduled | expired
+```
+
+---
+
+## Step 2 — Extract Real Data (verbatim)
+
+Use actual values from the HTML. Real numbers make the product feel live and trustworthy. Never invent placeholder data.
+
+### What to look for
+
+```html
+<!-- KPI stat cards -->
+<div class="stat">
+  <span class="value">38</span>
+  <span class="label">Plans actifs</span>
+  <span class="sub">En cours de remboursement</span>
+</div>
+
+<!-- Table rows — extract 4–6 representative rows -->
+<tr>
+  <td>Karim Benali</td>
+  <td>CTR-2025-0112</td>
+  <td>450 €</td>
+  <td class="badge badge-incident">Incident</td>
+</tr>
+
+<!-- Form fields — note labels and example values -->
+<label>Nombre d'échéances</label>
+<input type="number" value="3" placeholder="Ex: 3">
+
+<!-- Business logic in tooltips, help text, or aria labels -->
+<span title="Montant divisé par le nombre d'échéances">150 € / mois</span>
+```
+
+### Output: Data Inventory
+
+```ts
+// In your T object (const T = {...}) — keep the inline approach, no separate file
+// Map HTML CSS variables to Piloc tokens:
+// --color-primary → T.navy (#0E1029)
+// --color-accent  → T.mist (#9DB8EE)
+// --color-success → T.success (#329547)
+// --color-error   → T.error (#ec6369)
+// --color-warning → T.warning (#ffb704)
+
+// KPI data array (module level, before components)
+const KPI_DATA = [
+  { label: "Non validées",  value: 14,    sub: "En attente de consentement", color: T.warning },
+  { label: "En cours",      value: 38,    sub: "Plan actif",                 color: T.info    },
+  { label: "Avec incident", value: 5,     sub: "Échéance(s) échouée(s)",     color: T.error   },
+  { label: "À encaisser",   value: 12840, sub: "Sur 57 demandes actives",    color: T.text    },
+];
+
+// Table row data (extract 4–6 rows — enough to feel like a real table, not overwhelming)
+const ROWS = [
+  { name: "Karim Benali", contract: "CTR-2025-0112", amount: "450 €",
+    status: "validated", statusLabel: "Validée",
+    collected: "150 €", total: "450 €", progress: 33, barColor: T.mist,
+    honored: "1 / 3", incident: "Fonds insuf.", incidentType: "incident" },
+  // ... extract verbatim from HTML
+];
+```
+
+---
+
+## Step 3 — Extract Brand Tokens
+
+Scan for CSS custom properties at `:root` level, or repeated hex values.
+
+```css
+/* From HTML :root */
+:root {
+  --bg: #f8f9fa;
+  --surface: #ffffff;
+  --sidebar: #0e1029;
+  --accent: #9db8ee;
+  --success: #329547;
+  --error: #ec6369;
+  --warning: #ffb704;
+  --text: #112431;
+  --muted: #6b7280;
+  --border: #d9dfe3;
+}
+```
+
+Map to `const T` inline in your composition file:
+
+```ts
+const T = {
+  navy:    "#0E1029",   // background (override with HTML's --sidebar or --bg-dark)
+  mist:    "#9DB8EE",   // accent
+  bg:      "#f8f9fa",   // light mode background
+  surface: "#ffffff",   // card surface
+  text:    "#112431",   // primary text
+  muted:   "#6b7280",
+  light:   "#a4afb7",
+  border:  "#d9dfe3",
+  success: "#329547",
+  error:   "#ec6369",
+  warning: "#ffb704",
+  info:    "#0066cc",
+  font:    "'Inter', sans-serif",
+};
+```
+
+---
+
+## Step 4 — Identify User Flows (interactions)
+
+Scan the HTML for:
+- **Button labels** — `Valider`, `Notifier`, `Envoyer`, `Réessayer` → these become cursor click targets
+- **Multi-step forms** — step indicators, progress bars, "Suivant" buttons → these define your Funnel scene
+- **Modal / panel triggers** — buttons that open a side panel or dialog → these define card transitions
+- **Action consequences** — what text changes after a click? What badge flips? What number updates?
+
+### Output: Interaction Map
+
+```
+Click 1 (frame ~470): "Suivant" button → advances step 1 → 2
+Click 2 (frame ~540): "Suivant" button → advances step 2 → 3
+Click 3 (frame ~620): "Envoyer" button → confirms → success screen
+Cursor click (frame ~978): "Notifier le payeur" → button compress → "Notification envoyée"
+```
+
+---
+
+## Step 5 — Select Essential Components
+
+From everything you extracted, identify the 3–5 components that tell the story. Everything else is cut.
+
+### Selection criteria
+
+**Include if:**
+- It contains data that moves (count-up, progress bar, badge state change)
+- It's the main evidence of the feature's value (the incident badge, the plan config, the KPI)
+- It shows a before/after state that proves the feature works
+
+**Cut if:**
+- It's navigation chrome (top nav, sidebar links, breadcrumbs, footer)
+- It's a secondary or rarely-used feature
+- It duplicates information already shown elsewhere
+- It exists only as context (the viewer will understand without it)
+
+### Typical selection for a feature demo
+
+| Scene | Component | What it shows |
+|-------|-----------|---------------|
+| Hero | Kinetic title | Feature name + category |
+| Dashboard | KPI strip + table (4–6 rows) | The live state — viewer recognizes the problem |
+| Funnel | Wizard card (2–3 key steps) | How the user creates/configures |
+| Lifecycle | Detail card with state machine | The core feature in action |
+| CTA | Full dark kinetic or overlay card | Call to action |
+
+---
+
+## Step 6 — Design as Floating Cards
+
+Once you've selected your components, design them as floating white cards on dark navy — not as reproductions of the real UI.
+
+### Transformation rules
+
+| Real app | Marketing card |
+|----------|---------------|
+| Table with 20 rows | Table with 4–6 rows, row height ≥ 60px |
+| Form with 8 fields | Form with 2–3 fields, all pre-filled |
+| 13px font, tight spacing | 18–20px minimum, generous padding (24–32px) |
+| Full sidebar + header | SceneHeadline chip + title only |
+| Multiple panels visible | One card at a time |
+| Real badge colors | Same colors — these are already well-designed |
+
+### Card template (from `references/patterns` → cardBase)
+
+```tsx
+const cardBase: React.CSSProperties = {
+  background:   "rgba(255,255,255,0.97)",
+  borderRadius: 16,
+  border:       "1px solid rgba(255,255,255,0.60)",
+  boxShadow:    "0 2px 4px rgba(0,0,0,0.04), 0 20px 60px rgba(0,0,0,0.28)",
+};
+
+// Usage in a scene:
+<div style={{ ...cardBase, width: 1400, overflow: "hidden" }}>
+  {/* KPI strip */}
+  {/* Table */}
+</div>
+```
+
+Typical card widths:
+- KPI strip + table: **1400–1560px**
+- Detail card (single entity): **900–1000px**
+- Form / wizard: **700px**
+- Notification card: **700–800px**
+
+---
+
+## Step 7 — Asset Resolution
+
+HTML files reference assets via local paths that won't resolve in Remotion.
+
+| Asset type | Resolution |
+|-----------|------------|
+| Logo SVG | Use `<PilocLogo />` from `./Icons` — never `<img>` or `staticFile()` |
+| Icon SVGs | Extract `<path d="...">` from HTML `<symbol>` tags into `Icons.tsx` |
+| Product screenshots | Not needed — you're rebuilding as TSX |
+| Avatar photos | Replace with colored circle + initials |
+| Background images | Not needed — background is flat `T.navy` |
+| Fonts | Always Inter via `waitForInter()` — never a local font file |
+
+---
+
+## Checklist before writing any TSX
+
+- [ ] State machine map written (states, order, trigger events)
+- [ ] Story Map written (protagonist, flow, value moment, essential components)
+- [ ] Real data extracted verbatim (KPI values, row data, amounts, names, dates)
+- [ ] Brand tokens mapped to `const T`
+- [ ] Interaction map written (cursor waypoints, click targets, frame estimates)
+- [ ] Component list finalized (3–5 items, chrome excluded)
+- [ ] Card widths decided per scene
+- [ ] `references/patterns` read — all animation patterns ready to use

@@ -1,0 +1,336 @@
+# Cinematic AI Launch — Style Reference
+ 
+Use this file when the brief signals: cinematic, launch, phonk, glitch, neural network, neon, beat-sync, rim lighting, kinetic typography, or "cut on the beat."
+ 
+---
+ 
+## Visual Identity
+ 
+### Color Palette
+- **Background**: Deep black `#080808` to charcoal `#1A1A1A` — never pure white
+- **Primary accent**: Electric blue `#00D4FF` or cyan `#00FFE0`
+- **Secondary accent**: Purple `#8B5CF6` or violet `#A855F7`
+- **Warning/energy accent**: Neon green `#00FF88` (use sparingly — one moment only)
+- **Text**: Pure white `#FFFFFF` with occasional blue-tinted white `#E0F4FF`
+- **Glow/bloom**: All accent colors should have `filter: blur` glow layers behind them
+ 
+### Typography
+- **Font family**: Space Grotesk, Inter, or Geist (via `@remotion/google-fonts`)
+- **Weight**: 700–900 (bold/black only — never regular weight for hero text)
+- **Style**: All-caps for hook and CTA, mixed case for body copy
+- **Size**: Oversized — hero text should fill 60–80% of screen width
+- **Letter spacing**: `-0.02em` to `-0.04em` for tight, premium feel
+ 
+---
+ 
+## Arc: Cinematic AI Launch (90s / 2700 frames at 30fps)
+ 
+| Scene | Role | Duration | Frames | Energy Level |
+|-------|------|----------|--------|-------------|
+| 1. Hook | Bass drop + abstract visuals | 0–15s | 0–450 | 🔥 Max |
+| 2. Problem / Context | Data noise, complexity, overwhelm | 15–40s | 450–1200 | ⚡ High, building |
+| 3. Reveal | Product dashboard assembles | 40–70s | 1200–2100 | 🌊 Controlled climax |
+| 4. Climax + CTA | Feature rapid-fire + logo + action | 70–90s | 2100–2700 | 🔥 Max again |
+ 
+### Scene 1: Hook (0–15s | frames 0–450)
+- Opens on **pure black** — 0.5s silence before bass hit
+- First cut on beat drop — abstract neural network or particle field explodes into frame
+- 3–5 rapid cuts (1.5–2s each) of abstract 3D visuals
+- First text appears at beat hit #2 — bold claim, glitch entry
+- No product yet — pure energy, curiosity, pattern interrupt
+- Pacing: cut every 60–90 frames (2–3s)
+ 
+### Scene 2: Problem / Context (15–40s | frames 450–1200)
+- Visual metaphor: chaos, noise, overload — data flooding, fragmented screens, spinning without purpose
+- Transition into this scene with a WHIP PAN or FLASH CUT from the hook
+- 3–4 elements showing the problem — each 4–6s (120–180 frames)
+- Typography slides in describing pain points — high velocity, no fade
+- Ends with a FREEZE FRAME or slow-motion pull-back — the "inhale before the reveal"
+- Pacing: slightly slower than hook (3–5s cuts) to let the problem land
+ 
+### Scene 3: Reveal (40–70s | frames 1200–2100)
+- Beat hit signals the transition — hard cut to dark background
+- Product UI "assembles" from particles or geometric fragments — 3–4s assembly animation
+- Dashboard fades/scales in — feels like unlocking something powerful
+- Feature-by-feature reveal with UI close-ups — each feature gets 4–6s
+- Camera moves: slow push-in on UI, orbit around 3D element, dramatic tilt reveal
+- Use rim lighting glow on UI elements to make them feel premium
+- Pacing: medium (4–6s cuts) — let the product breathe and impress
+ 
+### Scene 4: Climax + CTA (70–90s | frames 2100–2700)
+- Pace accelerates back to hook speed — rapid-fire feature montage (1–2s each)
+- Beat sync: every cut lands ON the beat
+- Logo reveal: spring animation, glow burst, 2–3s hold
+- CTA text: largest text in video, glitch-in entry, holds for 5s
+- Final frame: logo + tagline + URL on dark background — clean and confident
+ 
+---
+ 
+## Beat-Sync Timing Logic
+ 
+**Rule: Cut on the beat. Every major visual transition aligns with a bass hit or snare.**
+ 
+### How to spec it in the storyboard:
+ 
+1. Identify track BPM (phonk/electronic typically 140–160 BPM)
+2. Calculate beat interval in frames:
+   - 140 BPM → beat every 12.9 frames ≈ **13 frames**
+   - 150 BPM → beat every 12 frames
+   - 160 BPM → beat every 11.25 frames ≈ **11 frames**
+3. Snap element `from` values to nearest beat frame
+4. Mark beat-sync cuts explicitly in the storyboard:
+ 
+```
+Transition to next: CUT ON BEAT (frame ~91, beat 7 @ 140BPM)
+```
+ 
+### Beat-sync tiers:
+- **Hard cut on beat** — for hook and climax sections (max energy)
+- **Transition starts on beat** — for dissolves and slides (medium energy)
+- **Text pop on beat** — typography appears exactly on beat hit (adds punch)
+ 
+### Remotion implementation:
+```ts
+const BPM = 140;
+const BEAT_FRAMES = (60 / BPM) * 30; // = 12.86 frames per beat
+ 
+// Snap to nearest beat
+const snapToBeat = (frame: number) => Math.round(frame / BEAT_FRAMES) * BEAT_FRAMES;
+ 
+// Pulse on beat (subtle scale throb)
+const beatPhase = (frame % BEAT_FRAMES) / BEAT_FRAMES;
+const beatPulse = interpolate(beatPhase, [0, 0.1, 1], [1.02, 1, 1]);
+```
+ 
+---
+ 
+## Animation Vocabulary — Cinematic Style
+ 
+### Glitch Entry (kinetic typography)
+```ts
+// Glitch text in — offset + snap
+const glitchOffset = frame < 3 ? Math.random() * 8 - 4 : 0;
+const opacity = interpolate(frame, [0, 4], [0, 1]);
+const translateX = frame < 3 ? glitchOffset : 0;
+ 
+// Color channel split (RGB offset effect)
+// Render text 3 times: red, green, blue channels offset by 2–4px, fade out after 6 frames
+const channelOffset = interpolate(frame, [0, 6], [4, 0]);
+```
+ 
+### High-Velocity Slide (text entry)
+```ts
+// Text rockets in from off-screen, decelerates sharply
+const translateX = interpolate(frame, [0, 8], [-200, 0], {
+  easing: Easing.out(Easing.cubic),
+  extrapolateRight: 'clamp',
+});
+```
+ 
+### Particle / Neural Network Reveal
+```ts
+// Each particle fades in at staggered frames
+// Use index-based offset: particle i starts at frame i * 2
+const particleOpacity = (index: number) =>
+  interpolate(frame - index * 2, [0, 10], [0, 1], { extrapolateLeft: 'clamp' });
+```
+ 
+### UI Dashboard Assembly
+```ts
+// Panels slide in from different directions with spring
+const panelScale = spring({ frame, fps, config: { stiffness: 80, damping: 20 } });
+const panelOpacity = interpolate(frame, [0, 20], [0, 1]);
+ 
+// Stagger each panel by 8 frames
+const panel1From = 0;
+const panel2From = 8;
+const panel3From = 16;
+```
+ 
+### Rim Light Glow (UI elements)
+```ts
+// CSS filter glow that pulses
+const glowIntensity = interpolate(
+  Math.sin((frame / 30) * Math.PI * 2), // 1 cycle per second
+  [-1, 1],
+  [8, 16]
+);
+// Apply as: style={{ filter: `drop-shadow(0 0 ${glowIntensity}px #00D4FF)` }}
+```
+ 
+### Motion Blur (fast camera moves)
+```ts
+// Use @remotion/motion-blur package
+import { CameraMotionBlur } from '@remotion/motion-blur';
+ 
+// Wrap fast-moving elements
+<CameraMotionBlur shutterAngle={180} samples={10}>
+  <FastMovingElement />
+</CameraMotionBlur>
+```
+ 
+### Scale Zoom (dramatic push-in)
+```ts
+const scale = interpolate(frame, [0, durationInFrames], [1, 1.15], {
+  easing: Easing.inOut(Easing.ease),
+});
+// Apply to background or UI element for Ken Burns / push-in effect
+```
+ 
+### Rapid-Fire Montage (climax)
+```ts
+// Each element is only 30–45 frames (1–1.5s)
+// Use AbsoluteFill with hard cuts — no transition animations
+// Let the beat do the work — visual cuts aligned to beat map
+```
+ 
+---
+ 
+## AI-Gen Prompt Library (Abstract Tech Visuals)
+ 
+Use these prompts with Sora, Kling, or HailuoAI for background B-roll and hook visuals.
+ 
+### Neural Network / Data Flow
+```
+"Glowing neural network with pulsing electric blue nodes and synaptic connections,
+deep black background, cinematic lighting, data particles flowing along pathways,
+4K, photorealistic, no text, seamless loop, slow drift camera"
+```
+ 
+### Particle Explosion / Data Burst
+```
+"Explosion of luminous data particles in cyan and purple, emanating from a central point,
+deep space black background, volumetric light, slow motion, cinematic, 4K, no text"
+```
+ 
+### Rotating Geometric Glass Structure
+```
+"Translucent glass geometric polyhedron rotating slowly, rim lighting in electric blue,
+deep charcoal background, refraction and caustics, premium product aesthetic,
+slow 360 rotation, 4K, photorealistic, no text"
+```
+ 
+### Dashboard UI Reveal (abstract)
+```
+"Holographic UI dashboard panels materializing from dark void, neon blue wireframe
+assembling into solid interface, data streams feeding into charts, cinematic depth of field,
+dark background, rim lighting, 4K, no text on screen"
+```
+ 
+### Abstract Data Noise → Order
+```
+"Chaotic swarm of white data points on black background gradually organizing into
+clean geometric grid pattern, time-lapse style, electric blue accent lines, 
+cinematic overhead shot, 4K, seamless"
+```
+ 
+### Macro Digital Texture
+```
+"Extreme macro close-up of circuit board or carbon fiber texture, shallow depth of field,
+warm rim lighting, charcoal and silver tones, cinematic, 4K, slow lateral drift, no text"
+```
+ 
+### Tips for AI video generation:
+- Add `"shot on RED camera, cinematic color grade"` for premium feel
+- Add `"seamless loop"` for background layers you want to tile
+- Use `"no text, no UI, no watermark"` to keep visuals clean for compositing
+- Kling and HailuoAI handle abstract motion better than Sora for non-realistic visuals
+ 
+---
+ 
+## Remotion Package Requirements
+ 
+For cinematic launch videos, add these packages:
+ 
+```bash
+npm install @remotion/motion-blur        # Motion blur on fast elements
+npm install @remotion/noise              # Procedural noise for particle effects
+npm install @remotion/google-fonts       # Space Grotesk / Inter
+npm install @remotion/shapes             # Geometric shape primitives
+npm install @remotion/three              # If using Three.js 3D in Remotion
+```
+ 
+---
+ 
+## Component Architecture — Cinematic Launch
+ 
+```
+src/
+├── Root.tsx
+├── compositions/
+│   └── CinematicLaunch.tsx          # Sequence-based with crossfades
+├── scenes/
+│   ├── Hook.tsx                     # 0–450 frames, abstract + bass drop
+│   ├── Problem.tsx                  # 450–1200 frames, chaos visuals
+│   ├── Reveal.tsx                   # 1200–2100 frames, dashboard build
+│   └── Climax.tsx                   # 2100–2700 frames — uses Series for rapid cuts
+├── components/
+│   ├── GlitchText.tsx               # Kinetic glitch entry animation
+│   ├── ParticleField.tsx            # Neural network / particle background
+│   ├── DashboardAssembly.tsx        # UI panel staggered build
+│   ├── RimLitCard.tsx               # UI card with glow/rim light
+│   └── FeatureCut.tsx               # Single beat-sync cut: shot + bold word
+└── lib/
+    ├── animations.ts                # All interpolate/spring helpers
+    ├── beatSync.ts                  # BPM → frame math utilities
+    └── palette.ts                   # Color constants + glow helpers
+```
+ 
+### Trailer composition pattern
+ 
+```tsx
+// CinematicLaunch.tsx — top level uses Sequence (scenes can crossfade)
+export const CinematicLaunch = () => (
+  <AbsoluteFill style={{ background: '#080808' }}>
+    <Sequence from={0}    durationInFrames={460}><Hook /></Sequence>
+    <Sequence from={440}  durationInFrames={770}><Problem /></Sequence>   // 20-frame crossfade
+    <Sequence from={1195} durationInFrames={915}><Reveal /></Sequence>
+    <Sequence from={2100} durationInFrames={600}><Climax /></Sequence>
+    <Sequence from={0}    durationInFrames={2700}>
+      <Audio src={staticFile('track.mp3')} volume={1} />
+    </Sequence>
+  </AbsoluteFill>
+);
+ 
+// Climax.tsx — rapid-fire montage uses Series (sequential, no gaps, no manual frame math)
+const FEATURE_CUTS = [
+  { label: 'FASTER', shot: 'kpi-dashboard' },
+  { label: 'SMARTER', shot: 'neural-abstract' },
+  { label: 'AUTOMATED', shot: 'workflow' },
+  { label: 'UNIFIED', shot: 'team-feed' },
+  { label: 'POWERFUL', shot: 'particle-burst' },
+  { label: 'PRECISE', shot: 'alert-resolved' },
+  { label: 'EVERYWHERE', shot: 'multi-device' },
+  { label: 'YOURS', shot: 'logo-close' },
+];
+const CUT_FRAMES = 45; // 1.5s @ 30fps — snaps to 140BPM beat
+ 
+export const Climax = () => (
+  <AbsoluteFill>
+    <Series>
+      {FEATURE_CUTS.map(({ label, shot }) => (
+        <Series.Sequence key={label} durationInFrames={CUT_FRAMES}>
+          <FeatureCut label={label} shot={shot} />
+        </Series.Sequence>
+      ))}
+    </Series>
+    <Sequence from={FEATURE_CUTS.length * CUT_FRAMES} durationInFrames={240}>
+      <LogoAssembly />
+    </Sequence>
+  </AbsoluteFill>
+);
+```
+ 
+---
+ 
+## Production Notes Template — Cinematic Launch
+ 
+```
+Music: Phonk or dark electronic, 140–160 BPM, heavy bass drop at 0:00, builds through problem,
+       peak energy at reveal (0:40), controlled drop for CTA hold
+Pacing: Fast (2s) → Medium (4s) → Fast (1.5s) — mirrors energy arc
+Color: Black/charcoal base, electric blue primary, purple secondary — NO warm tones
+Style: Cinematic AI launch — polished, no UGC elements, premium post-production feel
+Motion blur: On all fast camera moves and whip pans
+Glow: All accent UI elements carry drop-shadow glow at 8–16px
+```

@@ -1,0 +1,1466 @@
+
+
+# Remotion Patterns — Extracted from Production Compositions
+
+This cookbook documents patterns that have been validated in production renders.
+Use these exact implementations. Do not reinvent unless there is a clear reason.
+
+---
+
+## 1. FILE BOILERPLATE
+
+### 1a. Light mode (Apple style — app demo on white/grey background)
+
+```ts
+import React from "react";
+import {
+  AbsoluteFill, continueRender, delayRender,
+  interpolate, spring, useCurrentFrame, useVideoConfig,
+} from "remotion";
+import { Icon } from "./Icons";
+import { waitForInter } from "./fonts";
+
+// ─── Design tokens ────────────────────────────────────────────────
+const T = {
+  bg: "#f8f9fa", surface: "#ffffff", sidebar: "#0e1029",
+  accent: "#9db8ee", mist: "#9DB8EE", text: "#112431", muted: "#6b7280",
+  light: "#a4afb7", border: "#d9dfe3",
+  success: "#329547", warning: "#ffb704", error: "#ec6369", info: "#0066cc",
+  font: "'Inter', sans-serif",
+};
+
+// ─── Timeline (30 fps) ────────────────────────────────────────────
+// [Add inline comments describing the narrative sequence]
+const TL = {
+  fadeIn:    0,
+  kpis:      20,
+  rows:      60,
+  camZoom:   120,
+  action:    180,
+  cta:       350,
+  end:       450,
+};
+```
+
+### 1b. Dark navy mode (feature launch / hero style — dark background, white floating cards)
+
+```ts
+// ─── Design tokens — dark navy ────────────────────────────────────
+const T = {
+  navy:    "#0E1029",    // background — flat, no texture
+  mist:    "#9DB8EE",    // accent color (blue-grey)
+  solar:   "#FFB784",    // warm accent (click flash, CTA)
+  surface: "#ffffff",    // card background
+  text:    "#112431",    // card text
+  muted:   "#6b7280",    // secondary text
+  light:   "#a4afb7",    // tertiary text / borders
+  border:  "#e2e8f0",    // card internal borders
+  success: "#329547",
+  error:   "#ec6369",
+  warning: "#ffb704",
+  font:    "'Inter', sans-serif",
+};
+
+// Card base skin — use as spread on all floating cards
+const cardBase: React.CSSProperties = {
+  background:   "rgba(255,255,255,0.97)",
+  borderRadius: 16,
+  border:       "1px solid rgba(255,255,255,0.60)",
+  boxShadow:    "0 2px 4px rgba(0,0,0,0.04), 0 20px 60px rgba(0,0,0,0.28)",
+};
+
+// ─── Timeline (30 fps) ────────────────────────────────────────────
+// In dark navy / frame-based mode, TL keys describe scene boundaries.
+// Timing rules:
+//   heroOut → dashIn: 10f gap (quick cut feel)
+//   dashIn → kpiAll: 16f (scene fades in first, then KPIs appear)
+//   kpiAll → tableIn: ~20f (table appears soon after KPIs, not 40f)
+//   tableIn → rows: 12f (rows TL key drives badge/progress stagger only)
+//   Lifecycle steps: equal gaps of ~36f between state changes
+//   Incident → notifierIn: 50f (let the incident land before card pops)
+const TL = {
+  heroIn: 0,    heroOut: 80,
+  dashIn: 90,   kpiAll: 106,  tableIn: 126, rows: 138,
+  cursorIn: 192, cursorAt: 212, click: 226, dashOut: 228,
+  sceneIn: 238, karimIn: 250,
+  lcValidated: 274, lcPayment: 310, lcIncident: 346,
+  notifierIn: 396, notifyClick: 432, confirm: 446, notifyOut: 484,
+  cta: 496,     end: 566,
+};
+// Note: adjust absolute values to your scenario. The *gaps* are what matter.
+```
+
+Main composition background: `<AbsoluteFill style={{ background: T.navy }}>` — that's it, no SVG, no gradient.
+
+---
+
+## 2. HELPERS
+
+Define these at the top of every file. Never inline these patterns.
+
+```ts
+// Clamp shorthand — use on every interpolate call
+const clamp = { extrapolateLeft: "clamp" as const, extrapolateRight: "clamp" as const };
+
+// Fade in: opacity 0→1 over d frames starting at s
+const fade  = (f: number, s: number, d = 20) => interpolate(f, [s, s + d], [0, 1], clamp);
+
+// Fade out: opacity 1→0 over d frames starting at s
+const fdOut = (f: number, s: number, d = 20) => interpolate(f, [s, s + d], [1, 0], clamp);
+
+// Spring helper with startAt offset
+function spr(frame: number, startAt: number, fps: number, cfg = { damping: 22, stiffness: 140 }) {
+  return spring({ frame: frame - startAt, fps, config: cfg });
+}
+
+// French number formatter
+const fr = (n: number) => n.toLocaleString("fr-FR");
+```
+
+**Usage pattern for combined fade-in + fade-out:**
+```ts
+// Element that fades in then fades out:
+const o = fade(frame, TL.sceneIn, 16) * fdOut(frame, TL.sceneOut, 14);
+style={{ opacity: o }}
+```
+
+---
+
+## 3. CAMERA SYSTEM
+
+### CamKF type and useCam hook
+
+```ts
+interface CamKF { f: number; cx: number; cy: number; zoom: number }
+
+function useCam(kfs: CamKF[], frame: number, fps: number) {
+  if (frame <= kfs[0].f) return kfs[0];
+  if (frame >= kfs[kfs.length - 1].f) return kfs[kfs.length - 1];
+  for (let i = 0; i < kfs.length - 1; i++) {
+    const a = kfs[i], b = kfs[i + 1];
+    if (frame >= a.f && frame < b.f) {
+      const s = spring({
+        frame: frame - a.f, fps,
+        config: { damping: 26, stiffness: 160, mass: 1 },
+        durationInFrames: Math.max(b.f - a.f, 1),
+      });
+      return {
+        cx: interpolate(s, [0, 1], [a.cx, b.cx]),
+        cy: interpolate(s, [0, 1], [a.cy, b.cy]),
+        zoom: interpolate(s, [0, 1], [a.zoom, b.zoom]),
+      };
+    }
+  }
+  return kfs[kfs.length - 1];
+}
+```
+
+### Camera keyframe array — hold frames ensure spring settles
+
+```ts
+// Rule: duplicate a keyframe ~18 frames before the next move to create a "hold"
+// The spring needs ~18 frames to settle; triggering the next move too early causes blending artifacts.
+const CAMERA_KFS: CamKF[] = [
+  { f: 0,   cx: 960,  cy: 540, zoom: 1.0 },  // full view
+  { f: 120, cx: 960,  cy: 540, zoom: 1.0 },  // hold — start moving at 120
+  { f: 160, cx: 1188, cy: 462, zoom: 2.5 },  // arrive at target (spring settles ~138)
+  { f: 210, cx: 1188, cy: 462, zoom: 2.5 },  // hold — keep zoom before next move
+  { f: 250, cx: 960,  cy: 540, zoom: 1.0 },  // return to full view
+  { f: 400, cx: 960,  cy: 540, zoom: 1.0 },  // hold to end
+];
+```
+
+### Camera layer in JSX — apply exactly this
+
+```tsx
+// In the main composition:
+const cam = useCam(CAMERA_KFS, frame, fps);
+
+<div style={{
+  position: "absolute", inset: 0,
+  transformOrigin: "50% 50%",
+  transform: `translate(${-(cam.cx - 960) * cam.zoom}px, ${-(cam.cy - 540) * cam.zoom}px) scale(${cam.zoom})`,
+}}>
+  {/* All UI goes here — this is world space */}
+  <div style={{ display: "flex", height: 1080, width: 1920 }}>
+    <Sidebar />
+    <MainContent />
+  </div>
+  {/* Panels that need to zoom with the camera also go here */}
+  {frame >= TL.panelOpen && <SidePanel frame={frame} />}
+</div>
+
+{/* Screen-space elements go OUTSIDE the camera div */}
+<Cursor frame={frame} />
+{frame >= TL.cta && <CalloutOverlay frame={frame} startAt={TL.cta} fps={fps} />}
+```
+
+### How to calculate camera target coordinates
+
+For an element at column percentage X of a 1664px content area (1920 - 256px sidebar):
+- World X = 256 + (colPct * 1664)
+- World Y = measured from top of 1080px canvas (header ~80px, content starts ~80px)
+
+Example: "Statut payeur" column at 51–61% of content area → cx = 256 + 0.56 × 1664 ≈ 1188
+
+---
+
+## 4. FLEX TABLE PATTERN
+
+Never use `<table>/<tr>`. Use flex divs with COL_W percentage array.
+
+### Table reveal strategy — simultaneous rows, staggered badges/bars
+
+**Rule:** Rows should appear as a complete table (simultaneous fade), NOT one by one. Only badges and progress bars pop in staggered — they add visual life without making the table feel slow to load.
+
+```tsx
+function TableRow({ row, idx, frame, fps }: {
+  row: RowData; idx: number; frame: number; fps: number;
+}) {
+  // All rows fade in at the same time — table feels like one cohesive unit
+  const rowO  = fade(frame, TL.tableIn, 14);
+  // Badges and progress bars stagger in after — adds life, light stagger (6f)
+  const popAt = TL.rows + idx * 6;
+  const badgeSc = spr(frame, popAt, fps, { damping: 14, stiffness: 220 });
+
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", height: 72,
+      borderBottom: `1px solid ${T.border}`, opacity: rowO }}>
+      {/* Text columns — just rendered, no animation */}
+      <div style={{ ...cell(), width: COL_W[0] }}>{row.name}</div>
+      {/* Badge column — spring pop */}
+      <div style={{ ...cell(), width: COL_W[1] }}>
+        <Badge type={row.statusType} label={row.statusLabel} scale={badgeSc} />
+      </div>
+      {/* Progress bar column — fills in after row appears */}
+      <div style={{ ...cell({ flexDirection: "column" }), width: COL_W[2] }}>
+        <ProgressBar pct={row.pct} color={row.color} frame={frame}
+          startAt={popAt + 2} duration={28} />
+      </div>
+    </div>
+  );
+}
+```
+
+**TL.rows is not for row stagger — it's the pop anchor.** Rows all appear at `TL.tableIn`. `TL.rows` only serves as the base for `popAt = TL.rows + idx * 6`.
+
+```tsx
+// Column widths — must sum to 100%
+const COL_W = ["8%", "19%", "8%", "8%", "8%", "10%", "15%", "7%", "11%", "6%"];
+
+// Cell style factory — avoids repeating common cell styles
+const cell = (extra?: React.CSSProperties): React.CSSProperties => ({
+  padding: "13px 16px",
+  boxSizing: "border-box" as const,
+  flexShrink: 0,
+  fontSize: 13,
+  color: T.text,
+  display: "flex",
+  alignItems: "center",
+  ...extra,
+});
+
+// Header row
+<div style={{ display: "flex", background: "#fafafa", borderBottom: `1px solid ${T.border}` }}>
+  {["Col 1", "Col 2", "Col 3"].map((h, i) => (
+    <div key={i} style={{ ...TH, width: COL_W[i] }}>{h}</div>
+  ))}
+</div>
+
+// Data row
+<div style={{ display: "flex", alignItems: "center", borderBottom: `1px solid ${T.border}` }}>
+  <div style={{ ...cell({ color: T.muted }), width: COL_W[0] }}>{row.date}</div>
+  <div style={{ ...cell(), width: COL_W[1], flexDirection: "column", alignItems: "flex-start" }}>
+    <div style={{ fontWeight: 500 }}>{row.name}</div>
+    <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{row.contract}</div>
+  </div>
+  {/* ... */}
+</div>
+```
+
+---
+
+## 5. ANIMATION PATTERNS
+
+### Fade + slide entry (most common)
+
+```ts
+const o  = fade(frame, startAt);          // opacity 0→1
+const ty = interpolate(frame, [startAt, startAt + 20], [12, 0], clamp); // translateY
+// Apply: style={{ opacity: o, transform: `translateY(${ty}px)` }}
+```
+
+### Staggered list items
+
+```tsx
+{items.map((item, idx) => {
+  const startAt = baseStart + idx * 6; // 6 frames between each item (validated)
+  const o  = fade(frame, startAt);
+  const ty = interpolate(frame, [startAt, startAt + 20], [10, 0], clamp);
+  return <Item key={item.id} style={{ opacity: o, transform: `translateY(${ty}px)` }} />;
+})}
+```
+
+### KPI count-up
+
+```ts
+const val = Math.round(interpolate(frame, [startAt, startAt + 35], [0, target], clamp));
+// Render: {prefix}{val.toLocaleString("fr-FR")}{suffix}
+```
+
+### KPI bounce (number updates live)
+
+```ts
+// Single sin-pulse bump when a value increments
+const dt = frame - TL.kpiBounce;
+const kpiScale = dt >= 0 ? 1 + 0.18 * Math.sin(Math.min(1, dt / 18) * Math.PI) : 1;
+// Apply: style={{ transform: `scale(${kpiScale})`, transformOrigin: "center center" }}
+```
+
+### Spring pop (badge appears)
+
+```ts
+const badgeSc = frame >= startAt
+  ? spring({ frame: frame - startAt, fps: 30, config: { damping: 13, stiffness: 220 } })
+  : 0;
+// Apply: style={{ transform: `scale(${badgeSc})`, transformOrigin: "left center" }}
+```
+
+### Color interpolation between two colors
+
+```ts
+// Define RGB components as const tuples
+const ACCENT_RGB = [157, 184, 238] as const;
+const ERROR_RGB  = [236, 99,  105] as const;
+
+const t = interpolate(frame, [startAt, startAt + 20], [0, 1], clamp);
+const barColor = `rgb(
+  ${Math.round(interpolate(t, [0, 1], [ACCENT_RGB[0], ERROR_RGB[0]]))},
+  ${Math.round(interpolate(t, [0, 1], [ACCENT_RGB[1], ERROR_RGB[1]]))},
+  ${Math.round(interpolate(t, [0, 1], [ACCENT_RGB[2], ERROR_RGB[2]]))}
+)`;
+```
+
+### Row highlight (blur + scale focus)
+
+```tsx
+// When a row becomes the focal point: scale it up, blur everything else
+const hp = frame >= TL.highlight
+  ? spring({ frame: frame - TL.highlight, fps: 30, config: { damping: 28, stiffness: 120 } })
+  : 0;
+const scale      = isHighlighted ? interpolate(hp, [0, 1], [1, 1.06]) : 1;
+const blurAmt    = !isHighlighted && frame >= TL.highlight
+  ? interpolate(frame, [TL.highlight, TL.highlight + 20], [0, 3.5], clamp)
+  : 0;
+const shadowAlpha = interpolate(hp, [0, 1], [0, 0.16]);
+
+// Row style:
+style={{
+  transform: `scale(${scale})`,
+  filter: isHighlighted ? "none" : `blur(${blurAmt}px)`,
+  boxShadow: isHighlighted ? `0 16px 52px rgba(14,16,41,${shadowAlpha})` : "none",
+  zIndex: isHighlighted ? 10 : 1,
+  position: "relative",
+}}
+```
+
+### Badge flip (status changes)
+
+```ts
+const rawFlip = interpolate(frame, [TL.flip, TL.flip + 25], [0, 180], clamp);
+const scaleX  = Math.abs(Math.cos((rawFlip * Math.PI) / 180));
+const showFront = rawFlip <= 90;
+
+// Render:
+<div style={{ transform: `scaleX(${scaleX})`, display: "inline-flex" }}>
+  {showFront ? <Badge type="pending" label="Non validée" /> : <Badge type="validated" label="Validée" />}
+</div>
+```
+
+### Progress bar (animated fill)
+
+```ts
+const filled = interpolate(frame, [startAt, startAt + 40], [0, targetPct], clamp);
+// Render:
+<div style={{ background: "#f0f0f0", borderRadius: 99, height: 6, overflow: "hidden", width: 100 }}>
+  <div style={{ height: "100%", borderRadius: 99, background: color, width: `${filled}%` }} />
+</div>
+```
+
+### Row background flash (action confirmation)
+
+```ts
+const flashO = interpolate(frame, [actionAt, actionAt + 6, actionAt + 25], [0, 0.18, 0], clamp);
+const rowBg  = flashO > 0 ? `rgba(50,149,71,${flashO})` : "transparent"; // success flash
+// Apply to row: style={{ background: rowBg }}
+```
+
+### SVG donut chart (animated segments)
+
+```ts
+const r = 35, cx = 45, cy = 45, sw = 13;
+const circ = 2 * Math.PI * r; // ≈ 219.9
+
+// Each segment: precompute dashLen and cumulative offset
+const segments = [
+  { color: T.accent,  dashLen: 61.6,  offset: 0 },
+  { color: T.success, dashLen: 68.2,  offset: 61.6 },
+  { color: T.error,   dashLen: 11.0,  offset: 129.8 },
+];
+
+// Render:
+{segments.map((seg, i) => {
+  const animLen = interpolate(frame, [startAt + i * 10, startAt + i * 10 + 30], [0, seg.dashLen], clamp);
+  return (
+    <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={sw}
+      strokeDasharray={`${animLen} ${circ}`}
+      strokeDashoffset={-seg.offset}
+      style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}
+    />
+  );
+})}
+```
+
+### SVG line chart with clipPath reveal (more robust than strokeDashoffset for area fills)
+
+```tsx
+const clipWidth = interpolate(frame, [startAt, startAt + 50], [0, 290], clamp);
+
+<svg width="100%" viewBox="0 0 290 60" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor={T.accent} stopOpacity={0.25} />
+      <stop offset="100%" stopColor={T.accent} stopOpacity={0.02} />
+    </linearGradient>
+    <clipPath id="lineClip">
+      <rect x="0" y="0" width={clipWidth} height="60" />
+    </clipPath>
+  </defs>
+  {/* Fill area — clipped to reveal left-to-right */}
+  <polygon
+    points="0,48 35,42 80,35 125,26 165,17 210,9 280,3 280,60 0,60"
+    fill="url(#lineGrad)"
+    clipPath="url(#lineClip)"
+  />
+  {/* Line */}
+  <polyline
+    points="0,48 35,42 80,35 125,26 165,17 210,9 280,3"
+    fill="none" stroke={T.accent} strokeWidth={2.5}
+    strokeDasharray={320}
+    strokeDashoffset={interpolate(frame, [startAt, startAt + 50], [320, 0], clamp)}
+  />
+</svg>
+```
+
+### Sidebar slide-in
+
+```ts
+const s  = spr(frame, 0, fps, { damping: 20, stiffness: 140 });
+const tx = interpolate(s, [0, 1], [-256, 0]);
+// Apply to sidebar div: style={{ transform: `translateX(${tx}px)` }}
+```
+
+### Side panel slide-in from right
+
+```ts
+const sc = spring({ frame: frame - TL.panelOpen, fps: 30, config: { damping: 22, stiffness: 140 } });
+const tx = interpolate(sc, [0, 1], [600, 0]);
+// Apply: style={{ transform: `translateX(${tx}px)` }}
+```
+
+### Backdrop overlay (for panel or callout)
+
+```ts
+const overlayO = fade(frame, TL.panelOpen, 15);
+// Render (in camera space if panel needs to zoom with camera; in screen space otherwise):
+<div style={{ position: "absolute", inset: 0, background: "rgba(14,16,41,.22)", opacity: overlayO }} />
+```
+
+---
+
+## 6. CALLOUT OVERLAY (End Card / CTA)
+
+This is the standard end-card component. Every video should end with this.
+Place it in screen space (outside the camera div).
+
+```tsx
+const CalloutOverlay: React.FC<{ frame: number; startAt: number; fps: number }> = ({ frame, startAt, fps }) => {
+  const o  = fade(frame, startAt, 25);
+  const s  = spr(frame, startAt, fps, { damping: 18, stiffness: 100 });
+  const sc = interpolate(s, [0, 1], [0.88, 1]);
+
+  const features = ["Feature 1", "Feature 2", "Feature 3"]; // customize per video
+
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity: o, pointerEvents: "none", zIndex: 100 }}>
+      {/* Backdrop */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "rgba(8,10,28,0.65)", backdropFilter: "blur(4px)",
+      }} />
+      {/* Card */}
+      <div style={{
+        position: "absolute", top: "50%", left: "50%",
+        transform: `translate(-50%, -50%) scale(${sc})`,
+        background: T.surface, borderRadius: 18, padding: "44px 56px",
+        boxShadow: "0 48px 120px rgba(0,0,0,0.45)",
+        maxWidth: 640, width: 640, textAlign: "center",
+        fontFamily: T.font,
+      }}>
+        {/* Label chip */}
+        <div style={{
+          fontSize: 11, fontWeight: 700, color: T.accent,
+          letterSpacing: 2.5, textTransform: "uppercase", marginBottom: 16,
+        }}>
+          PILOC · [FEATURE NAME]
+        </div>
+        {/* Headline — benefit, not feature */}
+        <div style={{ fontSize: 30, fontWeight: 700, color: T.text, lineHeight: 1.3, marginBottom: 18 }}>
+          [Main benefit, max 2 lines]
+        </div>
+        {/* Body */}
+        <div style={{ fontSize: 15, color: T.muted, lineHeight: 1.75, marginBottom: 30 }}>
+          [1–2 lines supporting description]
+        </div>
+        {/* Feature pills */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          {features.map((feat, i) => {
+            const pillO = fade(frame, startAt + 15 + i * 8, 15);
+            return (
+              <span key={feat} style={{
+                background: "rgba(157,184,238,0.15)", color: T.accent,
+                borderRadius: 99, fontSize: 13, fontWeight: 600, padding: "7px 18px",
+                opacity: pillO,
+              }}>{feat}</span>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+## 7. TEXT OVERLAY (Caption / Action Label)
+
+Burned-in text overlay for LinkedIn muted-autoplay. Place in screen space.
+
+```tsx
+interface TextOverlayProps {
+  frame: number;
+  showAt: number;
+  hideAt: number;
+  text: string;
+}
+
+const TextOverlay: React.FC<TextOverlayProps> = ({ frame, showAt, hideAt, text }) => {
+  const o = Math.min(
+    interpolate(frame, [showAt, showAt + 12], [0, 1], clamp),
+    interpolate(frame, [hideAt - 10, hideAt], [1, 0], clamp),
+  );
+  if (o <= 0) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 80, left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(14,16,41,0.65)", backdropFilter: "blur(2px)",
+      borderRadius: 8, padding: "8px 20px",
+      fontSize: 18, fontWeight: 600, color: "#ffffff",
+      whiteSpace: "nowrap", fontFamily: T.font,
+      opacity: o, zIndex: 200,
+    }}>
+      {text}
+    </div>
+  );
+};
+
+// Usage in main composition (screen space):
+<TextOverlay frame={frame} showAt={TL.camZoom + 18} hideAt={TL.camZoom + 80} text="Statut payeur en temps réel" />
+<TextOverlay frame={frame} showAt={TL.action}      hideAt={TL.action + 60}   text="Paiement validé automatiquement" />
+```
+
+---
+
+## 8. CURSOR SYSTEM
+
+Use when the scenario involves a user interaction (click, hover, scroll).
+
+**Two cursor styles available:**
+- **Circular dot + ripple (pattern #14 — preferred):** Dark navy dot + white halo ring. Visible on both light and dark backgrounds. The ripple ring signals clicks. Use for all new compositions.
+- **SVG arrow cursor (below — legacy):** Use only when demoing an actual OS desktop context where a real cursor matters for realism.
+
+### SVG Arrow cursor (legacy — use pattern #14 instead)
+
+The SVG arrow cursor with `ArrowSVG`/`HandSVG` components is no longer recommended. See pattern #14 for the current circular cursor implementation.
+
+---
+
+## 9. FONT LOADING (every composition)
+
+```tsx
+export const MyComposition: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const [handle] = React.useState(() => delayRender("Loading Inter font"));
+  React.useEffect(() => {
+    waitForInter().then(() => continueRender(handle));
+  }, [handle]);
+
+  // ... rest of composition
+};
+```
+
+---
+
+## 10. REGISTERING A NEW COMPOSITION
+
+Add to `src/index.tsx`:
+
+```tsx
+import { MyFeatureDemo } from "./MyFeatureDemo";
+
+// Inside RemotionRoot:
+<Composition
+  id="MyFeature"
+  component={MyFeatureDemo}
+  fps={30}
+  width={1920}
+  height={1080}
+  durationInFrames={450}  // match TL.end
+/>
+```
+
+---
+
+## 11. EMPHASIS RING OVERLAY
+
+For highlighting a specific area of the screen after a camera zoom (e.g., "look at these two rows"):
+
+```tsx
+const EmphasisRings: React.FC<{ frame: number }> = ({ frame }) => {
+  const o = interpolate(frame, [TL.highlightAt, TL.highlightAt + 15, TL.highlightAt + 35, TL.highlightAt + 50], [0, 0.9, 0.9, 0], clamp);
+  if (o <= 0) return null;
+  return (
+    <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 50, opacity: o }}>
+      {/* Position rings at world-space coordinates — only works when zoom = 1 or in camera space */}
+      {[490, 565].map((y, i) => (
+        <div key={i} style={{
+          position: "absolute", left: 820, top: y, width: 160, height: 26,
+          border: `2px solid ${T.error}`, borderRadius: 6,
+          boxShadow: `0 0 16px ${T.error}88`,
+          background: `rgba(236,99,105,0.06)`,
+        }} />
+      ))}
+    </div>
+  );
+};
+// Note: if camera is zoomed when rings appear, place EmphasisRings inside camera div
+// If zoom=1, place outside camera div (screen space = world space at zoom=1)
+```
+
+---
+
+## 12. FRAME-BASED SCENE ARCHITECTURE
+
+Use when the video has distinct acts (Hero → Dashboard → Detail → CTA) rather than a single zoomable layout.
+
+Each scene is a self-contained component that renders `null` outside its window:
+
+```tsx
+// Scene visibility pattern — every scene uses this guard
+function HeroScene({ frame, fps }: { frame: number; fps: number }) {
+  if (frame < TL.heroIn || frame > TL.heroOut + 20) return null;
+  const o = fade(frame, TL.heroIn, 18) * fdOut(frame, TL.heroOut, 16);
+  return (
+    <div style={{ position: "absolute", inset: 0, opacity: o }}>
+      {/* scene content */}
+    </div>
+  );
+}
+
+// Scenes that use AbsoluteFill with flex layout:
+function LifecycleScene({ frame, fps }: { frame: number; fps: number }) {
+  if (frame < TL.sceneIn || frame > TL.sceneOut + 22) return null;
+  const o = fade(frame, TL.sceneIn, 16) * fdOut(frame, TL.sceneOut, 20);
+  return (
+    <AbsoluteFill style={{
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      gap: 36, opacity: o,
+    }}>
+      {/* centered content: headline + card */}
+    </AbsoluteFill>
+  );
+}
+
+// Main composition — flat list of scenes, no camera system:
+export const MyFeatureDemo: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const [handle] = React.useState(() => delayRender("Loading Inter font"));
+  React.useEffect(() => {
+    waitForInter().then(() => continueRender(handle));
+  }, [handle]);
+
+  return (
+    <AbsoluteFill style={{ background: T.navy, fontFamily: T.font, overflow: "hidden" }}>
+      <HeroScene frame={frame} fps={fps} />
+      <DashboardScene frame={frame} fps={fps} />
+      <LifecycleScene frame={frame} fps={fps} />
+      <CTAScene frame={frame} fps={fps} />
+      <Cursor frame={frame} fps={fps} />  {/* always last — screen space */}
+    </AbsoluteFill>
+  );
+};
+```
+
+**Cross-fading between two headlines within a scene — use a shared bascule point:**
+
+Both headlines must share the same transition frame to avoid a blank gap. If `hl1O` starts fading out at frame X, `hl2O` must start fading in at exactly frame X.
+
+```tsx
+// ✅ Correct — shared bascule, no gap
+const hl2Start = TL.lcIncident + 10;         // single source of truth
+const hl1O = fade(frame, TL.sceneIn + 4, 14) * fdOut(frame, hl2Start, 16);
+const hl2O = fade(frame, hl2Start, 16)       * fdOut(frame, TL.sceneOut, 18);
+
+// ❌ Wrong — hl1 gone at 392, hl2 starts at 408 → 16-frame blank gap
+// const hl1O = fade(frame, TL.sceneIn + 4, 14) * fdOut(frame, TL.lcIncident + 6, 18);
+// const hl2O = fade(frame, TL.notifierIn - 10, 18) * fdOut(frame, TL.sceneOut, 18);
+```
+
+```tsx
+<div style={{ position: "relative", height: 110, width: "100%", textAlign: "center" }}>
+  <div style={{ position: "absolute", inset: 0, opacity: hl1O }}>
+    <SceneHeadline chip="..." title="..." accent="..." frame={frame} startAt={TL.sceneIn + 4} />
+  </div>
+  <div style={{ position: "absolute", inset: 0, opacity: hl2O }}>
+    <SceneHeadline chip="..." title="..." accent="..." frame={frame} startAt={hl2Start}
+      color={T.error} /* change accent color to match new mood */ />
+  </div>
+</div>
+```
+
+**Rule:** Never tie `hl2O` fade-in to `TL.notifierIn` and `hl1O` fade-out to a different frame. Always compute one shared `hl2Start` and derive both opacities from it.
+
+---
+
+## 13. SCENE HEADLINE (dark navy style)
+
+Shared component for consistent chip + title + colored accent across all scenes on dark backgrounds.
+
+```tsx
+function SceneHeadline({ chip, title, accent, frame, startAt, color = "#9DB8EE" }: {
+  chip: string;     // e.g. "Piloc · Plans d'apurement"
+  title: string;    // e.g. "Suivez vos plans"
+  accent?: string;  // e.g. "en temps réel" (colored)
+  frame: number;
+  startAt: number;
+  color?: string;   // accent word color, default mist
+}) {
+  const chipO  = fade(frame, startAt, 12);
+  const titleO = fade(frame, startAt + 8, 14);
+  return (
+    <div style={{ textAlign: "center" }}>
+      {/* Chip label */}
+      <div style={{
+        display: "inline-flex", padding: "5px 16px", borderRadius: 99,
+        background: "rgba(157,184,238,0.14)", border: "1px solid rgba(157,184,238,0.30)",
+        fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.72)",
+        letterSpacing: 2.2, textTransform: "uppercase", fontFamily: T.font,
+        marginBottom: 16, opacity: chipO,
+      }}>{chip}</div>
+      {/* Title */}
+      <div style={{
+        fontSize: 48, fontWeight: 800, lineHeight: 1.2,
+        letterSpacing: -1.5, color: "#fff", fontFamily: T.font,
+        opacity: titleO,
+      }}>
+        {title}{accent && <> <span style={{ color }}>{accent}</span></>}
+      </div>
+    </div>
+  );
+}
+```
+
+**Usage rules:**
+- Every scene in dark navy mode should have a `SceneHeadline` — chip + title centered above the card.
+- Keep 28px gap between the headline and the card below it.
+- When narrative shifts (e.g. incident occurs), cross-fade to a new `SceneHeadline` with `color={T.error}`.
+- Accent color: mist (`#9DB8EE`) by default, `T.error` for incident/alert moments.
+
+---
+
+## 14. CIRCULAR CURSOR + RIPPLE (preferred click cursor)
+
+Use this instead of the SVG arrow cursor for product demos. The ripple ring clearly signals a click without an arrow distracting from the UI.
+
+**Dual-visibility cursor (visible on both white cards and dark navy background):**
+- Dot: `background: T.navy` (`#0E1029`) — dark, visible on white
+- Halo: `box-shadow: 0 0 0 3px rgba(255,255,255,0.90)` — white ring, visible on dark
+- Ripple ring: `border: 2px solid T.navy` — expands outward on click
+
+This combination works on any surface: dark dot contrasts on light, white halo contrasts on dark. Never use a pure white dot (invisible on light cards).
+
+```tsx
+// Waypoints — spring-interpolated path
+interface WP { f: number; x: number; y: number }
+
+// IMPORTANT: This is a plain function, NOT a React hook.
+// Do NOT prefix with "use" — calling it conditionally (e.g. inside if blocks) would
+// violate React's rules of hooks if it were named useCursorPos.
+function getCursorPos(wps: WP[], frame: number, fps: number) {
+  if (frame <= wps[0].f) return { x: wps[0].x, y: wps[0].y };
+  if (frame >= wps[wps.length - 1].f) return { x: wps[wps.length - 1].x, y: wps[wps.length - 1].y };
+  for (let i = 0; i < wps.length - 1; i++) {
+    const a = wps[i], b = wps[i + 1];
+    if (frame >= a.f && frame < b.f) {
+      const s = spring({ frame: frame - a.f, fps, config: { damping: 30, stiffness: 100 } });
+      return { x: interpolate(s, [0, 1], [a.x, b.x]), y: interpolate(s, [0, 1], [a.y, b.y]) };
+    }
+  }
+  return { x: wps[wps.length - 1].x, y: wps[wps.length - 1].y };
+}
+
+// Define waypoints and click frame in TL
+const CURSOR_WPS: WP[] = [
+  { f: TL.cursorIn, x: 1480, y: 680 },     // appears off to the side
+  { f: TL.cursorAt, x: TARGET_X, y: TARGET_Y }, // glides to target
+  { f: TL.dashOut + 20, x: TARGET_X, y: TARGET_Y },
+];
+
+function Cursor({ frame, fps }: { frame: number; fps: number }) {
+  if (frame < TL.cursorIn || frame > TL.dashOut + 18) return null;
+
+  const pos     = getCursorPos(CURSOR_WPS, frame, fps);
+  const o       = fade(frame, TL.cursorIn, 10) * fdOut(frame, TL.dashOut, 14);
+  const clickDt = frame - TL.click;
+  const isClick = clickDt >= 0 && clickDt <= 22;
+
+  // Dot compresses on click, then returns
+  const dotSc = isClick ? 1 - 0.4 * Math.sin((clickDt / 22) * Math.PI) : 1;
+  // Ripple ring expands outward and fades
+  const ringR = isClick ? interpolate(clickDt, [0, 22], [14, 38], clamp) : 14;
+  const ringO = isClick ? interpolate(clickDt, [0, 4, 22], [0, 1, 0], clamp) : 0;
+
+  return (
+    <div style={{ position: "absolute", left: 0, top: 0, opacity: o, pointerEvents: "none", zIndex: 300 }}>
+      {/* Expanding ripple ring */}
+      <div style={{
+        position: "absolute",
+        left: pos.x - ringR, top: pos.y - ringR,
+        width: ringR * 2, height: ringR * 2, borderRadius: "50%",
+        border: "2px solid rgba(255,255,255,0.85)",
+        opacity: ringO,
+      }} />
+      {/* White dot — compresses on click */}
+      <div style={{
+        position: "absolute",
+        left: pos.x - 10, top: pos.y - 10,
+        width: 20, height: 20, borderRadius: "50%",
+        background: "#fff",
+        boxShadow: "0 0 0 4px rgba(255,255,255,0.22), 0 0 24px rgba(255,255,255,0.55)",
+        transform: `scale(${dotSc})`,
+        transformOrigin: "center center",
+      }} />
+    </div>
+  );
+}
+```
+
+**Calculating click target coordinates in Frame-based mode:**
+Trace from the component structure in your scene:
+- `paddingTop` of the scene container
+- Chip height + gap + headline height + gap + KPI section height + gap = distance to table top
+- Table header height + (row index × row height) + (row height / 2) = row center Y
+- Column left offset + (column width / 2) = click X
+
+Document these in comments above `CLICK_X` / `CLICK_Y` constants.
+
+---
+
+## 15. CARD POP (state transition without flip)
+
+When a new card replaces an existing card (e.g. incident card replaces detail card), avoid 3D flips. Use spring pop + opacity cross-fade.
+
+```tsx
+// Container — relative position, both cards inside
+<div style={{ width: 960, height: 420, position: "relative" }}>
+
+  {/* Front card — fades out */}
+  <div style={{
+    position: "absolute", inset: 0, ...cardBase, overflow: "hidden",
+    opacity: fade(frame, TL.karimIn, 16) * fdOut(frame, TL.notifierIn, 12),
+  }}>
+    <FrontCard frame={frame} fps={fps} />
+  </div>
+
+  {/* Pop card — springs in */}
+  {frame >= TL.notifierIn && (
+    <div style={{
+      position: "absolute", inset: 0, ...cardBase, overflow: "hidden",
+      opacity: fade(frame, TL.notifierIn, 10) * fdOut(frame, TL.notifyOut, 18),
+      transform: `scale(${interpolate(
+        spr(frame, TL.notifierIn, fps, { damping: 18, stiffness: 170 }),
+        [0, 1], [0.88, 1]
+      )})`,
+    }}>
+      <PopCard frame={frame} fps={fps} />
+    </div>
+  )}
+
+</div>
+```
+
+**Rules:**
+- Pop card starts at scale `0.88`, springs to `1`. Never use `rotateY` or `perspective`.
+- Both cards share the same `position: absolute, inset: 0`. The container has `position: relative`.
+- The front card fades out slightly before the pop card appears — avoids both being fully visible simultaneously.
+- For a "replace" feel, start pop card when front card is at ~30% opacity.
+
+---
+
+## 16. LIFECYCLE / STATE MACHINE ANIMATION
+
+When animating an entity through multiple states over time (e.g. payment plan: pending → validated → first payment → incident):
+
+```tsx
+// Derive booleans from TL frame thresholds
+const isValidated = frame >= TL.lcValidated;
+const isPayment   = frame >= TL.lcPayment;
+const isIncident  = frame >= TL.lcIncident;
+
+// Derive computed display state from booleans (order matters — last truthy wins)
+const badgeType: BadgeType  = isIncident ? "incident" : isValidated ? "validated" : "pending";
+const badgeLabel: string    = isIncident ? "Fonds insuf." : isValidated ? "Validée" : "En attente";
+
+// Badge springs in fresh on each state change
+const badgeSc = spring({
+  frame: frame - (isIncident ? TL.lcIncident : isValidated ? TL.lcValidated : 0),
+  fps, config: { damping: 13, stiffness: 200 },
+});
+
+// Echeance pill state — derive from same booleans
+const ech1State = isPayment ? "paid"     : isValidated ? "current" : "pending";
+const ech2State = isIncident ? "incident" : isPayment  ? "current" : "pending";
+
+// Each pill springs in when its state becomes active:
+const pillSc = state === "incident"
+  ? spring({ frame: frame - TL.lcIncident, fps, config: { damping: 13, stiffness: 200 } })
+  : state === "paid" && isPayment
+  ? spring({ frame: frame - TL.lcPayment,  fps, config: { damping: 13, stiffness: 180 } })
+  : 1; // already visible, no animation
+```
+
+**Incident visual feedback (beyond badge change):**
+```tsx
+// Subtle red tint overlay on the card itself
+const incT = isIncident ? Math.min(1, (frame - TL.lcIncident) / 22) : 0;
+{incT > 0 && (
+  <div style={{
+    position: "absolute", inset: 0, borderRadius: 16,
+    background: `rgba(236,99,105,${0.05 * incT})`,
+    border: `1.5px solid rgba(236,99,105,${0.35 * incT})`,
+    pointerEvents: "none",
+  }} />
+)}
+
+// Progress bar color: mist (blue) while filling, transitions to red on incident
+const barR     = Math.round(interpolate(incT, [0, 1], [157, 236]));
+const barG     = Math.round(interpolate(incT, [0, 1], [184, 99]));
+const barB     = Math.round(interpolate(incT, [0, 1], [238, 105]));
+const barColor = `rgb(${barR},${barG},${barB})`;
+```
+
+**Initial state badge also pops in (not just state changes):**
+
+The first badge ("En attente") should spring in when the card first appears — not be static. Every badge appearance is a pop.
+
+```tsx
+// Badge springs on every state change, INCLUDING the initial state
+const badgeSc = isIncident
+  ? spring({ frame: frame - TL.lcIncident,  fps, config: { damping: 13, stiffness: 200 } })
+  : isValidated
+  ? spring({ frame: frame - TL.lcValidated, fps, config: { damping: 13, stiffness: 200 } })
+  : spring({ frame: frame - TL.karimIn,     fps, config: { damping: 13, stiffness: 200 } });
+  // ↑ Initial "En attente" badge also pops when card appears
+```
+
+**Timing guidelines (equal steps — validated approach):**
+- `lcValidated`: 24f after card appears (fast — just confirming active status)
+- `lcPayment`: 36f after validated — equal step
+- `lcIncident`: 36f after payment — equal step (keep all state transitions equal)
+- `notifierIn`: 50f after incident — **longer gap** to let the incident land before the card flips
+- Each step equal = rhythm feels intentional, not rushed or dragged
+
+---
+
+## 17. PROGRESS BAR WITH DURATION PARAMETER
+
+When the fill speed matters for narrative rhythm, use a `duration` prop:
+
+```tsx
+function ProgressBar({ pct, color, frame, startAt, height = 6, duration = 40 }: {
+  pct: number; color: string; frame: number; startAt: number;
+  height?: number;
+  duration?: number; // frames to complete the fill — 20 = fast, 40 = normal, 80 = slow
+}) {
+  const filled = interpolate(frame, [startAt, startAt + duration], [0, pct], clamp);
+  return (
+    <div style={{ background: "#f1f5f9", borderRadius: 99, height, overflow: "hidden", width: "100%" }}>
+      <div style={{ height: "100%", borderRadius: 99, background: color, width: `${filled}%` }} />
+    </div>
+  );
+}
+
+// Usage:
+// Fast fill (emphasis on completion): duration={20}
+// Normal fill: duration={40}
+// Slow fill (dragging tension): duration={80}
+<ProgressBar pct={33} color={barColor} frame={frame} startAt={TL.lcPayment} height={12} duration={20} />
+```
+
+---
+
+## 18. BUTTON CLICK FEEDBACK (confirmation flow)
+
+For a "click → confirm" sequence (e.g. "Notifier le client" → "Notification envoyée"):
+
+```tsx
+const clickDt   = frame - TL.notifyClick;
+const isClick   = clickDt >= 0 && clickDt <= 14;
+const btnSc     = isClick ? 1 - 0.05 * Math.sin((clickDt / 14) * Math.PI) : 1;
+// Flash: brief warm color glow on click
+const flashO    = interpolate(frame, [TL.notifyClick, TL.notifyClick + 5, TL.notifyClick + 22], [0, 0.3, 0], clamp);
+const confirmed = frame >= TL.confirm;
+const confirmO  = fade(frame, TL.confirm, 12);
+
+// In JSX — two layers: primary button and confirmation state
+<div style={{ position: "relative", height: 58 }}>
+  {/* Primary button — hides after confirm */}
+  <div style={{
+    position: "absolute", inset: 0, borderRadius: 14,
+    background: T.navy, color: "#fff",
+    transform: `scale(${btnSc})`,
+    opacity: confirmed ? 0 : 1,
+    overflow: "hidden",
+  }}>
+    {/* Click flash overlay */}
+    <div style={{
+      position: "absolute", inset: 0, borderRadius: 14,
+      background: T.solar, opacity: flashO,
+    }} />
+    <span style={{ position: "relative" }}>Notifier le client</span>
+  </div>
+  {/* Confirmation state — fades in */}
+  <div style={{
+    position: "absolute", inset: 0, borderRadius: 14,
+    background: "rgba(50,149,71,0.10)", color: T.success,
+    opacity: confirmO,
+    display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+  }}>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke={T.success} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+    Notification envoyée
+  </div>
+</div>
+```
+
+---
+
+## 19. HERO SCENE (dark navy, large kinetic title)
+
+```tsx
+function HeroScene({ frame, fps }: { frame: number; fps: number }) {
+  if (frame < TL.heroIn || frame > TL.heroOut + 20) return null;
+  const o = fade(frame, TL.heroIn, 18) * fdOut(frame, TL.heroOut, 16);
+
+  // Each element springs in on staggered frames
+  const chipSc  = spr(frame, 4,  fps, { damping: 22, stiffness: 120 });
+  const line1Sc = spr(frame, 16, fps, { damping: 22, stiffness: 120 });
+  const line2Sc = spr(frame, 30, fps, { damping: 22, stiffness: 120 });
+
+  return (
+    <div style={{
+      position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", opacity: o,
+    }}>
+      {/* Category chip */}
+      <div style={{
+        display: "inline-flex", padding: "6px 20px", borderRadius: 99,
+        background: "rgba(157,184,238,0.14)", border: "1px solid rgba(157,184,238,0.30)",
+        fontSize: 12, fontWeight: 700, color: T.mist, letterSpacing: 2.4,
+        textTransform: "uppercase", fontFamily: T.font, marginBottom: 36,
+        opacity: chipSc, transform: `translateY(${interpolate(chipSc, [0, 1], [14, 0])}px)`,
+      }}>Piloc · Gestion locative</div>
+
+      {/* Giant title — white + mist accent, separate lines for stagger */}
+      <div style={{
+        fontSize: 118, fontWeight: 900, color: "#fff", letterSpacing: -4.5, lineHeight: 1.0,
+        opacity: line1Sc, transform: `translateY(${interpolate(line1Sc, [0, 1], [34, 0])}px)`,
+      }}>Feature Name</div>
+      <div style={{
+        fontSize: 118, fontWeight: 900, color: T.mist, letterSpacing: -4.5, lineHeight: 1.0,
+        opacity: line2Sc, transform: `translateY(${interpolate(line2Sc, [0, 1], [34, 0])}px)`,
+      }}>Subtitle</div>
+
+      {/* Tagline */}
+      <div style={{
+        fontSize: 20, color: "rgba(255,255,255,0.40)", fontFamily: T.font,
+        marginTop: 30, opacity: fade(frame, 44, 16) * fdOut(frame, TL.heroOut, 16),
+      }}>
+        Planifiez · Suivez · Réagissez
+      </div>
+
+      {/* Logo — always use PilocLogo component, never staticFile */}
+      <div style={{ marginTop: 28, opacity: fade(frame, 50, 16) * fdOut(frame, TL.heroOut, 16) }}>
+        <PilocLogo height={34} />
+      </div>
+    </div>
+  );
+}
+```
+
+**Typography scale for dark navy hero titles:**
+- Giant (118px, fontWeight 900, letterSpacing −4.5): main feature name
+- Large (58px, fontWeight 800, letterSpacing −2): CTA headline
+- Medium (48px, fontWeight 800, letterSpacing −1.5): scene headline above cards
+- Body (20px, fontWeight 400, color rgba(255,255,255,0.40)): tagline / descriptor
+
+---
+
+## 20. SEQUENCE-BASED AUDIO SYNC (native Remotion — preferred over ffmpeg)
+
+Per-scene voiceover with frame-accurate sync. Each clip lives in `public/voiceover/[comp]/[scene].mp3`.
+
+```tsx
+import { Audio, Sequence, staticFile } from "remotion";
+// Audio MUST come from @remotion/media, not remotion
+import { Audio } from "@remotion/media";
+
+// In main composition — one <Sequence> per scene clip:
+<Sequence from={TL.heroIn}>
+  <Audio src={staticFile("voiceover/campagnes/hero.mp3")} />
+</Sequence>
+<Sequence from={TL.s1In}>
+  <Audio
+    src={staticFile("voiceover/campagnes/step1.mp3")}
+    volume={(f) => interpolate(f, [0, 8], [0, 1], { extrapolateRight: "clamp" })}
+  />
+</Sequence>
+```
+
+**Why `<Sequence>` beats ffmpeg:** Remotion controls the audio frame-for-frame during render. The `from` prop is the exact frame where playback starts — no millisecond approximation, no conversion math.
+
+**Volume callback** — `f` is the local frame (0 = when the audio starts), not the global frame. Use it for fade-in (first 8f) or fade-out.
+
+**Multiple clips layered** — just add more `<Sequence>/<Audio>` pairs. Remotion mixes them automatically.
+
+---
+
+## 21. SPRING PRESETS & EASING (from Remotion skills)
+
+Named spring presets (use these instead of inventing configs):
+
+```ts
+// Smooth, no bounce — subtle reveals, camera moves
+const smooth  = { damping: 200 };
+
+// Snappy, minimal bounce — UI elements, badge pops
+const snappy  = { damping: 20, stiffness: 200 };
+
+// Bouncy — playful entrances (avoid in SaaS demos)
+const bouncy  = { damping: 8 };
+
+// Heavy, slow — large cards, dramatic reveals
+const heavy   = { damping: 15, stiffness: 80, mass: 2 };
+```
+
+**Spring with `delay` param** (cleaner than `frame - startAt`):
+```ts
+// Instead of: spring({ frame: frame - TL.cardIn, fps, config })
+// Use:
+spring({ frame, fps, delay: TL.cardIn, config: { damping: 200 } })
+```
+
+**Spring with `durationInFrames`** — stretches spring to exact frame count:
+```ts
+spring({ frame, fps, durationInFrames: 24 }) // settles exactly at frame 24
+```
+
+**Easing on interpolate** — use instead of spring when motion is linear-with-curve:
+```ts
+import { Easing } from "remotion";
+
+// Camera push-in — ease out (fast start, slow settle)
+const zoom = interpolate(frame, [TL.camStart, TL.camEnd], [1, 1.3], {
+  ...clamp,
+  easing: Easing.out(Easing.quad),
+});
+
+// Custom cubic bezier (e.g. iOS spring feel)
+const slide = interpolate(frame, [0, 30], [40, 0], {
+  ...clamp,
+  easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+});
+```
+
+Available curves (most→least linear): `Easing.quad`, `Easing.sin`, `Easing.exp`, `Easing.circle`.
+Combine with: `Easing.in`, `Easing.out`, `Easing.inOut`.
+
+---
+
+## 22. SEQUENCE & SERIES FOR SCENE TIMING
+
+An alternative to manual `if (frame < TL.xxx) return null` guards. Use when scenes are sequential with no complex overlapping.
+
+```tsx
+import { Series, Sequence } from "remotion";
+
+// Series — sequential scenes, no overlap. Frame resets to 0 inside each child.
+<Series>
+  <Series.Sequence durationInFrames={90}>
+    <HeroScene />        {/* useCurrentFrame() → 0–89 locally */}
+  </Series.Sequence>
+  <Series.Sequence offset={-15} durationInFrames={220}>
+    {/* Starts 15f before Hero ends — overlap for cross-fade */}
+    <Step1Scene />
+  </Series.Sequence>
+</Series>
+
+// Sequence — delay a single element. Adds premountFor for preloading.
+<Sequence from={TL.dashIn} premountFor={30}>
+  <DashboardScene />
+</Sequence>
+```
+
+**Key difference from our manual TL approach:**
+- Inside `<Sequence from={90}>`, `useCurrentFrame()` returns `0` at global frame 90, not `90`. All local animation math starts at 0.
+- Our current approach (passing `frame` as prop + global TL) is fine for complex multi-element scenes where you need global frame references. Use `<Series>` only for cleanly sequential scenes without internal cross-references to other scene TL frames.
+
+**Always add `premountFor`** to `<Sequence>` — it preloads the component before it becomes visible, preventing pop-in on first render.
+
+---
+
+## 23. TYPEWRITER HELPER
+
+Use whenever a form field or text area fills with text on screen. **Never show pre-filled text.** Animate it in character by character.
+
+```tsx
+function typewriter(frame: number, text: string, startAt: number, cps = 12, fps = 30) {
+  const fpc    = fps / cps;
+  const count  = Math.min(text.length, Math.floor(Math.max(0, frame - startAt) / fpc));
+  const cursor = count < text.length && Math.floor(frame / 7) % 2 === 0 ? "|" : "";
+  return { text: text.substring(0, count), cursor, done: count >= text.length };
+}
+
+// Usage:
+const { text: val, cursor } = typewriter(frame, "Karim Benali", TL.field1In, 12);
+// In JSX:
+<div>{val}<span style={{ opacity: 0.5 }}>{cursor}</span></div>
+```
+
+**Rules:**
+- Speed: `cps: 10–14` for short values (≤15 chars), `8–10` for longer text.
+- Stagger multiple fields: next field's `startAt = prevStartAt + Math.ceil(prevText.length / cps * fps) + 12`. Previous field finishes typing, then 12f pause, then next activates.
+- Active border: animate from `T.border → T.mist` using `interpolate(frame, [TL.fieldIn, TL.fieldIn + 12], [0, 1])` and lerp the color.
+- Stop cursor blinking once done (`count >= text.length` → cursor = "").
+- Pre-filled read-only values (e.g. contract ref auto-populated): appear instantly with `fade`, no typewriter.
+
+**Computing exact TL from typewriter timing:**
+```
+// Given: cps=16, fps=30 → fpc = 30/16 = 1.875
+// Segment "Bonjour " (8 chars) → duration = 8 × 1.875 = 15 frames
+// Cursor arrives when that segment is done → cursorIn = textStart + 15
+// Next segment starts after click → textStart2 = click + 13
+```
+
+---
+
+## 24. MULTI-CLICK CURSOR
+
+When the scenario has N sequential clicks (e.g. clicking 4 variable pills), extend pattern #14 with an array.
+
+```tsx
+// All click frames in an array — order = sequence
+const ALL_CLICKS = [TL.click1, TL.click2, TL.click3, TL.click4];
+
+function MultiCursor({ frame, fps }: { frame: number; fps: number }) {
+  if (frame < TL.cursorIn || frame > TL.cursorOut + 12) return null;
+  const pos = getCursorPos(CURSOR_WPS, frame, fps); // same getCursorPos from pattern #14
+  const o   = fade(frame, TL.cursorIn, 10) * fdOut(frame, TL.cursorOut, 14);
+
+  // Find the most recent active click within the ripple window (22f)
+  let clickDt = -1;
+  for (const c of ALL_CLICKS) {
+    const dt = frame - c;
+    if (dt >= 0 && dt <= 22) clickDt = dt;
+  }
+  const isClick = clickDt >= 0;
+  const dotSc   = isClick ? 1 - 0.4 * Math.sin((clickDt / 22) * Math.PI) : 1;
+  const ringR   = isClick ? interpolate(clickDt, [0, 22], [14, 38], clamp) : 14;
+  const ringO   = isClick ? interpolate(clickDt, [0, 4, 22], [0, 1, 0], clamp) : 0;
+
+  return (
+    <div style={{ position: "absolute", left: 0, top: 0, opacity: o, pointerEvents: "none", zIndex: 300 }}>
+      <div style={{
+        position: "absolute", left: pos.x - ringR, top: pos.y - ringR,
+        width: ringR * 2, height: ringR * 2, borderRadius: "50%",
+        border: "2px solid rgba(14,16,41,0.85)", opacity: ringO,
+      }} />
+      <div style={{
+        position: "absolute", left: pos.x - 10, top: pos.y - 10,
+        width: 20, height: 20, borderRadius: "50%",
+        background: T.navy, boxShadow: "0 0 0 3px rgba(255,255,255,0.90)",
+        transform: `scale(${dotSc})`, transformOrigin: "center center",
+      }} />
+    </div>
+  );
+}
+
+// Waypoints: cursor starts off-screen, visits each target, lingers after last click
+const CURSOR_WPS: WP[] = [
+  { f: TL.cursorIn,         x: 1420, y: 650 },              // appears off-canvas
+  { f: TL.cur1At,           x: TARGET1_X, y: TARGET1_Y },   // glides to pill 1
+  { f: TL.click1 + 12,     x: TARGET1_X, y: TARGET1_Y },   // holds after click
+  { f: TL.cur2At - 6,      x: TARGET2_X, y: TARGET2_Y },   // starts moving to pill 2
+  { f: TL.cur2At,          x: TARGET2_X, y: TARGET2_Y },
+  { f: TL.click2 + 12,     x: TARGET2_X, y: TARGET2_Y },
+  // ... repeat for N clicks
+];
+```
+
+**Waypoint pattern per click:** `curXAt - 6` (start moving) → `curXAt` (arrive) → `clickX + 12` (hold after ripple). The `-6` gives the spring time to start decelerating.
+
+---
+
+## 25. CURSOR WORLD-SPACE POSITION FORMULA (centered card layout)
+
+In Architecture B (frame-based), cards are centered in a `AbsoluteFill` using flex. Computing pixel coordinates for cursor targets requires tracing the layout stack.
+
+**Formula for a card centered in 1080p with SceneHeadline above it:**
+
+```
+// Variables:
+//   totalContent = sceneHeadlineH + gap + cardH
+//   cardTop      = (1080 - totalContent) / 2 + sceneHeadlineH + gap
+
+// SceneHeadline height:
+//   chip:  fontSize 12 × 1.2 lineHeight + 5px×2 padding + marginBottom 20 ≈ 44px
+//   title: fontSize 52 × 1.15 lineHeight ≈ 60px
+//   total ≈ 104px
+//
+// Card body starts at: cardTop + tabBarH (if any)
+// Then for a right panel with padding-top P, label heights L:
+//   firstPillY = cardTop + tabBarH + P + L
+//   rowN_centerY = firstPillY + (pillH / 2) + (N × (pillH + pillMarginBottom))
+```
+
+**Worked example — 2-column pill grid in right panel:**
+```
+cardTop      = (1080 - (104 + 32 + 464)) / 2 + 104 + 32 = 376px
+tabBarH      = 44px   → body starts at 420px
+rightPadding = 28px   → content starts at 448px
+label "Ajouter des variables" = 11px font × 1.2 + 6mb ≈ 19px
+subtitle = 12px font × 1.4 + 16mb ≈ 33px
+pillsStart   = 448 + 19 + 33 = 500px
+pillHeight   = 8×2 padding + 12px font × 1.2 = 30px
+rowSpacing   = 30 + 10 (marginBottom) = 40px
+
+Row 0 center = 500 + 15 = 515px
+Row 1 center = 500 + 40 + 15 = 555px
+Row 2 center = 500 + 80 + 15 = 595px
+
+// Column X (2 cols, gap 10, inner padding 28, content width 520):
+// colWidth = (520 - 56 - 10) / 2 = 227px
+// col0 center X = cardLeft + leftPanelW + rightPaddingLeft + 227/2
+// col1 center X = col0 + 227 + 10
+```
+
+**Do this math before writing the first TL, not after the first render.** Document it in a comment block above `const PILL = {...}`.
+
+---
+
+## 26. VARIABLE PILL INSERTION (click → colored token in textarea)
+
+Pattern for a "variable picker" panel where clicking a pill inserts a `{{ variable }}` token into a live text area.
+
+```tsx
+// State: which variables have been clicked (by TL frame)
+const CLICK_MAP: Record<string, number> = {
+  tenant_name:        TL.click1,
+  payment_url_amount: TL.click2,
+  payment_url:        TL.click3,
+  agency_name:        TL.click4,
+};
+const isPillDone  = (key: string) => !!CLICK_MAP[key] && frame >= CLICK_MAP[key] + 5;
+const pillFlash   = (key: string) => {
+  const at = CLICK_MAP[key]; if (!at) return 0;
+  const dt = frame - at; if (dt < 0 || dt > 18) return 0;
+  return interpolate(dt, [0, 3, 18], [0, 0.25, 0], clamp); // brief mist flash
+};
+// Spring scale pop on click
+const varSc = (at: number) =>
+  at && frame >= at ? spring({ frame: frame - at, fps, config: { damping: 14, stiffness: 200 } }) : 0;
+
+// Pill rendering (done = highlighted with mist border + bg)
+<div style={{
+  border: done ? `1.5px solid ${T.mist}` : `1px solid ${T.border}`,
+  background: done ? `rgba(157,184,238,${0.15 + flash})` : flash > 0 ? `rgba(157,184,238,${flash + 0.05})` : "#fff",
+  color: done ? T.mist : T.text,
+}}>{key}</div>
+
+// Token rendering in text area (colored inline span with spring pop)
+<span style={{
+  color: T.mist, fontWeight: 600,
+  background: "rgba(157,184,238,0.12)", borderRadius: 4, padding: "1px 4px",
+  display: "inline-block",
+  transform: `scale(${varSc(CLICK_MAP["tenant_name"])})`,
+  transformOrigin: "left center",
+}}>{"{{ tenant_name }}"}</span>
+```
+
+**The `buildSmsSegments()` approach:** Build the full composed text as alternating `{text, isVar, varKey}` segments. The typewriter engine advances through segments in order; each `{{ var }}` segment appears instantly (no char-by-char) when its click TL frame is reached.
+
+---
+
+## 27. PREVIEW CYCLING (cross-fading between N recipients/states)
+
+When Step 4 (or any "aperçu") needs to cycle through N items with a cross-fade:
+
+```tsx
+const ITEMS = [
+  { name: "Karim Benali",   msg: "..." },
+  { name: "Fatima Ouali",   msg: "..." },
+  { name: "David Marchand", msg: "..." },
+  { name: "Amina Traoré",   msg: "..." },
+];
+
+// Advance the active index at pre-defined TL frames
+const activeIdx =
+  frame >= TL.sw3 ? 3 :
+  frame >= TL.sw2 ? 2 :
+  frame >= TL.sw1 ? 1 : 0;
+
+// Each switch: equal spacing (~20f) — the cross-fade takes ~12f
+// sw1 = previewIn + 34, sw2 = sw1 + 20, sw3 = sw2 + 20
+
+// Cross-fade: compute opacity for the incoming item
+const switchFrames = [TL.previewIn, TL.sw1, TL.sw2, TL.sw3];
+const activeSwitch = switchFrames[activeIdx];
+const previewO     = fade(frame, activeSwitch, 12);
+
+// Render only the active item (re-mounting triggers the fade)
+<div key={activeIdx} style={{ opacity: previewO }}>
+  <div>{ITEMS[activeIdx].name}</div>
+  <div>{ITEMS[activeIdx].msg}</div>
+</div>
+```
+
+**Rule:** Space switches evenly (~20f). Don't use a long single typewriter for preview content — the text is too long and won't fit in the scene duration. Cross-fading between pre-composed strings is faster and cleaner.

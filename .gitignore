@@ -1,0 +1,28 @@
+# Dépendances
+remotion/node_modules/
+
+# Vidéos rendues (fichiers lourds)
+out/
+
+# Fichiers d'entrée client
+in/
+
+# Variables d'environnement — ne jamais committer
+.env
+
+# Cache Remotion (Chrome headless, binaires téléchargés automatiquement)
+.remotion/
+
+# Voix off générées (fichiers clients)
+remotion/public/voiceover-*.mp3
+
+# Binaires compilés
+skills/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
