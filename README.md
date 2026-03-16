@@ -210,11 +210,30 @@ Une fois le plugin installé, ouvre le panneau Claude Code dans VS Code. L'agent
 
 ---
 
+## Mémoire de l'agent
+
+L'agent se souvient des décisions prises au fil des sessions. Sa mémoire est stockée dans **`memory/MEMORY.md`**, dans ce repo — elle voyage avec le projet et est visible par tout le monde.
+
+```
+memory/
+└── MEMORY.md   ← l'agent écrit ici après chaque vidéo approuvée
+```
+
+**Ce qu'il mémorise :** uniquement les décisions non évidentes — une préférence de timing qui s'écarte des valeurs par défaut, un choix de mise en scène validé, une contrainte plateforme découverte en session.
+
+**Ce qu'il ne mémorise pas :** les règles déjà dans `CLAUDE.md`, les données des prototypes, les corrections ponctuelles.
+
+> Tu peux lire, corriger ou supprimer des entrées directement dans `memory/MEMORY.md`. L'agent relit ce fichier au démarrage de chaque conversation.
+
+---
+
 ## Structure du projet
 
 ```
 ├── in/                    ← Tes fichiers HTML / screenshots (ignoré par git)
 ├── out/                   ← Vidéos rendues (ignoré par git)
+├── memory/
+│   └── MEMORY.md          ← Mémoire persistante de l'agent (lisible et modifiable)
 ├── remotion/src/          ← Compositions TSX générées par l'agent
 ├── references/            ← Style guide, patterns, art direction
 ├── .agents/skills/        ← Règles Remotion chargées automatiquement
