@@ -175,9 +175,15 @@ Une fois toutes les couches validées, l'agent confirme :
 
 ---
 
-## Installation (une seule fois)
+## Installation et démarrage
 
-**Prérequis :** Node.js 18+ — télécharge la version LTS sur [nodejs.org](https://nodejs.org/) si tu ne l'as pas.
+### 1. Prérequis
+
+- **Node.js 18+** — télécharge la version LTS sur [nodejs.org](https://nodejs.org/)
+- **VS Code** — télécharge sur [code.visualstudio.com](https://code.visualstudio.com/)
+- **Compte Claude Pro ou Max** — [claude.ai](https://claude.ai/)
+
+### 2. Cloner le projet
 
 ```bash
 git clone https://github.com/gregmism/piloc-motion-agent
@@ -185,7 +191,22 @@ cd piloc-motion-agent
 ./setup.sh
 ```
 
-Le script installe Claude Code, les dépendances Remotion et crée les dossiers `in/` et `out/`. Connecte-toi à Claude via navigateur au premier lancement (compte Pro ou Max requis).
+Le script installe Claude Code, les dépendances Remotion et crée les dossiers `in/` et `out/`.
+
+### 3. Ouvrir le projet dans VS Code
+
+Lance VS Code, puis ouvre le dossier du projet :
+- **File → Open Folder…** → sélectionne le dossier `piloc-motion-agent`
+
+### 4. Installer le plugin Claude Code
+
+Dans VS Code, ouvre l'onglet Extensions (`⇧⌘X` sur Mac, `Ctrl+Shift+X` sur Windows) et recherche **Claude Code**. Installe l'extension Anthropic.
+
+Au premier lancement, une fenêtre de navigateur s'ouvre pour connecter ton compte Claude — pas de clé API à copier.
+
+### 5. Ouvrir une conversation avec l'agent
+
+Une fois le plugin installé, ouvre le panneau Claude Code dans VS Code. L'agent charge automatiquement les instructions du projet (`CLAUDE.md`) — il est prêt à produire ta vidéo.
 
 ---
 
