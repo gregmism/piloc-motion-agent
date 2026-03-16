@@ -149,7 +149,7 @@ Timing: logo at `ctaIn`, chip `+12`, line1 `+20`, line2 `+30`.
 
 ---
 
-## 4. AGENT WORKFLOW — 5 PHASES
+## 4. AGENT WORKFLOW — 6 PHASES
 
 **Do not skip phases. Do not write code before receiving storyboard approval.**
 
@@ -291,6 +291,135 @@ Read `references/patterns` next.
 
 ---
 
+### PHASE 5 — REVIEW & ITERATE
+
+**Triggered automatically after every render.** Do not wait for the user to describe problems.
+
+#### 5.1 — Post-render handoff message
+
+After the render command completes, output exactly this block (fill in real values):
+
+```
+✅ Rendu terminé — out/[YYYY-MM-DD-subject-li|yt].mp4
+   [Xs] · [W]×[H] · [N] frames @ 30fps
+
+Ouvre le fichier. Je vais recueillir ton feedback couche par couche, du plus structurel au plus fin :
+
+  1 · NARRATION   — arc narratif, scènes présentes, ordre des scènes
+  2 · DESIGN      — mise en page des cartes, couleurs, hiérarchie typographique
+  3 · CONTENU     — valeurs des données, labels, textes, message CTA
+  4 · RYTHME      — vitesse générale, temps de dwell, zones mortes
+  5 · ANIMATION   — ressenti des springs, stagger, transitions, curseur
+
+On valide dans cet ordre par défaut — chaque couche s'appuie sur la précédente.
+Tu peux sauter directement à n'importe quelle couche si les précédentes te conviennent.
+
+→ Par quelle couche tu veux commencer ? Ou décris ce que tu as remarqué.
+```
+
+#### 5.2 — Layer-by-layer validation
+
+When the user picks a layer (or describes a problem), open that layer with a focused question set. Do not ask all layers at once.
+
+The user will give feedback in French. Understand and respond in French throughout Phase 5.
+
+**Layer 1 — NARRATION**
+Demander :
+> « L'arc narratif te convient ?
+> - Toutes les scènes attendues sont présentes ?
+> - L'ordre est correct ?
+> - Le Beat 3 (moment clé) est bien lisible ?
+> - Le CTA est cohérent avec ce qui vient d'être montré ? »
+
+Approuvé → passer au Layer 2.
+Changement → classifier **Révision** ou **Refonte** (voir 5.3), traiter, re-render, revenir au Layer 1.
+
+**Layer 2 — DESIGN**
+Demander :
+> « Le rendu visuel te convient ?
+> - Proportions et taille des cartes à l'écran ?
+> - Hiérarchie typo (headline → valeur → sous-titre) ?
+> - Utilisation des couleurs — accent, états succès/erreur ?
+> - Quelque chose de surchargé ou difficile à lire ? »
+
+Approuvé → passer au Layer 3.
+Changement → classifier **Rapide** (token) ou **Révision** (mise en page), traiter, re-render, revenir au Layer 2.
+
+**Layer 3 — CONTENU**
+Demander :
+> « Tout le contenu est correct ?
+> - Valeurs des données exactes ? (KPIs, lignes du tableau, statuts)
+> - Textes corrects ? (headlines, overlays, ligne 2 du CTA)
+> - Labels manquants ou noms incorrects ? »
+
+Approuvé → passer au Layer 4.
+Changement → classifier **Rapide** (data/string), traiter, re-render, revenir au Layer 3.
+
+**Layer 4 — RYTHME**
+Demander :
+> « Le rythme te convient ?
+> - Vitesse générale (trop rapide / trop lent) ?
+> - Une scène qui nécessite plus de temps de dwell ?
+> - Une zone morte où il ne se passe rien ?
+> - La pause avant le CTA est suffisamment longue ? »
+
+Approuvé → passer au Layer 5.
+Changement → classifier **Rapide** (valeurs TL), traiter, re-render, revenir au Layer 4.
+
+**Layer 5 — ANIMATION**
+Demander :
+> « Les animations te semblent soignées ?
+> - Entrées en spring — trop rebondissantes, trop rigides, ou bien ?
+> - Rythme du stagger sur les lignes / pills ?
+> - Transitions entre les scènes ?
+> - Trajectoire et clic du curseur naturels ? »
+
+Approuvé → **valider** (voir 5.4).
+Changement → classifier **Rapide** (config spring) ou **Révision** (logique de mouvement), traiter, re-render, revenir au Layer 5.
+
+#### 5.3 — Change tracks
+
+Classify every requested change before touching code. Announce the track to the user.
+
+| Layer | Type of change | Track |
+|-------|---------------|-------|
+| 1 | Missing / reordered scene | **Revision** — mini-storyboard for affected scenes, approval before coding |
+| 1 | Narrative completely off | **Rebuild** — re-enter Phase 2, full storyboard |
+| 2 | Token value (color, size, weight) | **Quick** — `const T` edit only |
+| 2 | Layout restructure | **Revision** — targeted component edit |
+| 3 | Data value / string / copy | **Quick** — data array or string literal edit only |
+| 4 | TL frame values | **Quick** — `const TL` edit only |
+| 5 | Spring config / stagger spacing | **Quick** — inline spring parameter edit |
+| 5 | Motion logic change | **Revision** — targeted component edit |
+
+**QUICK** — Edit only the identified lines. Single pass. Re-render immediately. Re-open at the same layer.
+
+**REVISION** — For structural changes: output a mini-storyboard for affected scenes, get approval, then edit. For component-level changes: edit directly, re-render, re-open at the same layer.
+
+**REBUILD** — Re-enter Phase 2. Do not patch incrementally.
+
+When applying Quick fixes, always list old → new before editing:
+```
+TL.step2In:  180 → 220   (+40f — more dwell on step 1)
+TL.ctaIn:    480 → 520
+TL.totalDur: 570 → 610
+```
+
+#### 5.4 — Approval & memory
+
+When all layers are validated, output:
+```
+✅ Toutes les couches validées — [filename].mp4 est prêt à publier.
+```
+
+Then save any non-obvious decisions as feedback memories for future videos. Examples of what to save:
+- "User consistently finds 18f dwell too fast on table rows — use 28f minimum"
+- "LinkedIn square always needs font size +4px vs. 16:9"
+
+Do not save things already derivable from the code or these rules.
+
+---
+
 ## 5. TECHNICAL ARCHITECTURE
 
 ### File structure
@@ -338,6 +467,7 @@ See `references/patterns` #12 for scene template.
 - Output: `../out/YYYY-MM-DD-subject.mp4` from `remotion/` directory
 - Command: `npx remotion render src/index.tsx [CompositionId] ../out/YYYY-MM-DD-subject.mp4 --crf=8`
 - **Always render automatically after Phase 4.** Announce before running.
+- **After render completes:** do not stop. Transition immediately to Phase 5.
 
 ### Audio voiceover
 **Correct approach:** one MP3 per scene → `remotion/public/voiceover/[comp]/[scene].mp3`, then `<Sequence from={TL.sceneIn}><Audio src={staticFile("...")} /></Sequence>` inside the composition. Frame-accurate sync, no ffmpeg mixing needed.
