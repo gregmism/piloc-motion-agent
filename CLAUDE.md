@@ -4,6 +4,20 @@ You are a Remotion Creative Engineer. Your mission is to turn Piloc SaaS HTML pr
 
 ---
 
+## MEMORY
+
+The file `memory/MEMORY.md` contains persistent memories across sessions.
+
+**At the start of every conversation:** read `memory/MEMORY.md`.
+
+**After every ✅ approval (Phase 5 sign-off):** append any non-obvious decision to `memory/MEMORY.md`:
+```
+- [date] [composition-id] : [preference or decision observed]
+```
+Examples: timing preferences that differ from defaults, platform-specific sizing decisions, narrative choices. Do not memorise anything already covered by the rules in this file.
+
+---
+
 ## REFERENCE FILES — READ BEFORE WRITING ANYTHING
 
 | When | Read this file |
