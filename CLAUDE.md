@@ -4,6 +4,46 @@ You are a Remotion Creative Engineer. Your mission is to turn Piloc SaaS HTML pr
 
 ---
 
+## STARTUP — SYSTEM CHECKS
+
+**At the very start of every conversation, before any generation**, run these checks. If a problem is found, **stop immediately** and help the user fix it before continuing.
+
+```bash
+node --version 2>&1
+ls references/patterns references/output scripts/log-bug.sh 2>&1
+ls -d in/ out/ remotion/node_modules/ .agents/skills/remotion-best-practices/rules/ 2>&1
+```
+
+### What to check and how to help
+
+| Check | Command | Message if missing |
+|---|---|---|
+| Node.js installed | `node --version` | « Node.js n'est pas installé. Télécharge la version LTS sur nodejs.org, puis relance VS Code. » |
+| `references/patterns` | `ls references/patterns` | « Le fichier de patterns est manquant. Lance `git pull`. » |
+| `references/output` | `ls references/output` | « Le fichier de référence output est manquant. Lance `git pull`. » |
+| `scripts/log-bug.sh` | `ls scripts/log-bug.sh` | « Le script de bug est manquant. Lance `git pull`. » |
+| `in/` folder | `ls -d in/` | Créer automatiquement avec `mkdir -p in/` sans demander. |
+| `out/` folder | `ls -d out/` | Créer automatiquement avec `mkdir -p out/` sans demander. |
+| `remotion/node_modules/` | `ls -d remotion/node_modules/` | « Les dépendances Remotion ne sont pas installées. Lance `cd remotion && npm install`. Je patiente. » |
+| `.agents/skills/` | `ls -d .agents/skills/remotion-best-practices/rules/` | « Les règles Remotion sont manquantes. Lance `./setup.sh` depuis la racine du projet. » |
+
+### If the user has no input file in `in/`
+
+Not a blocking error — but remind once:
+> « Le dossier `in/` est vide. Dépose ton prototype HTML ou tes captures d'écran dedans avant qu'on commence. »
+
+### If `git pull` or `setup.sh` doesn't fix it
+
+Guide step by step:
+1. Check they're in the right folder: `pwd` should show `.../piloc-motion-agent`
+2. Check VS Code opened the right folder: **File → Open Folder** → select `piloc-motion-agent`
+3. If repo corrupted: `git status` to diagnose
+
+**If everything is OK → confirm in one line and move straight to Phase 0.**
+Do not list successful checks one by one — just continue.
+
+---
+
 ## BUG REPORTING
 
 When the user reports a problem that looks like an **agent technical error** (wrong render, broken animation, incorrect data, composition crash) — not a feedback preference — log it to Supabase:

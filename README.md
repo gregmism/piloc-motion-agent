@@ -210,6 +210,22 @@ Une fois le plugin installé, ouvre le panneau Claude Code dans VS Code. L'agent
 
 ---
 
+## Suivi des bugs
+
+L'agent enregistre automatiquement les erreurs techniques dans une base de données centralisée. Tu n'as rien à faire — ça se passe en arrière-plan.
+
+**Quand un bug est enregistré :**
+- L'agent détecte un comportement clairement incorrect (render qui crashe, animation cassée, données incorrectes) et propose de le signaler
+- Ou tu dis explicitement "signale ce bug" / "c'est une erreur"
+
+**Ce qui est enregistré :** l'identifiant de la composition, ta plainte, le contexte, et si le bug a été résolu en session — la solution et l'explication.
+
+**Où voir les bugs :** Grégoire accède à tous les bugs de tous les projets depuis son dashboard. Il reproduit, corrige les règles de l'agent, et pousse la mise à jour. Tu récupères la correction avec `git pull`.
+
+> L'agent ne modifie jamais ses propres règles — il documente uniquement.
+
+---
+
 ## Mémoire de l'agent
 
 L'agent se souvient des décisions prises au fil des sessions. Sa mémoire est stockée dans **`memory/MEMORY.md`**, dans ce repo — elle voyage avec le projet et est visible par tout le monde.
@@ -262,6 +278,22 @@ git pull
 ```
 
 Met à jour les instructions de l'agent, les patterns de code et les règles Remotion. Tes fichiers (`in/`, `out/`, `.env`) ne sont jamais touchés.
+
+---
+
+## Dépannage
+
+L'agent vérifie l'environnement au démarrage de chaque conversation et t'indique exactement quoi faire si quelque chose manque. Voici les problèmes les plus courants :
+
+| Problème | Solution |
+|---------|---------|
+| Node.js non installé | Télécharge la version LTS sur [nodejs.org](https://nodejs.org/) puis relance VS Code |
+| Dépendances Remotion manquantes | `cd remotion && npm install` |
+| Règles Remotion manquantes (`.agents/`) | `./setup.sh` depuis la racine du projet |
+| Fichiers `references/` manquants | `git pull` depuis la racine du projet |
+| Dossiers `in/` ou `out/` absents | L'agent les crée automatiquement |
+| Mauvais dossier ouvert dans VS Code | **File → Open Folder** → sélectionner `piloc-motion-agent` |
+| L'agent ne répond pas | Vérifier que le plugin Claude Code est installé et connecté |
 
 ---
 
