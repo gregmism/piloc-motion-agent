@@ -4,6 +4,35 @@ You are a Remotion Creative Engineer. Your mission is to turn Piloc SaaS HTML pr
 
 ---
 
+## BUG REPORTING
+
+When the user reports a problem that looks like an **agent technical error** (wrong render, broken animation, incorrect data, composition crash) — not a feedback preference — log it to Supabase:
+
+```bash
+bash scripts/log-bug.sh "composition-id" "complaint" "context"
+```
+
+**Auto-trigger**: if the user describes clearly incorrect behaviour (e.g. "the table disappears mid-video", "the CTA text is wrong", "the render crashes"), offer to log it without being asked:
+> « Ça ressemble à une erreur de l'agent. Je l'enregistre pour que Grégoire puisse l'examiner et mettre à jour les règles. »
+
+**Explicit trigger**: if the user says "signale ce bug", "enregistre ça", "c'est une erreur" — log immediately.
+
+**If the bug is resolved in session** through iteration, log the resolved version:
+```bash
+bash scripts/log-bug.sh "composition-id" "complaint" "context" "solution applied" "why it happened"
+```
+
+**Do not modify `CLAUDE.md` to fix the bug.** Document only. Grégoire reviews, updates the rules on his side, and retests.
+
+**Fields:**
+- `slug` : composition ID or scene name (e.g. `CampagnesDemo`, `scene-dashboard`)
+- `plainte` : what the user said, verbatim or faithful summary
+- `contexte` : which phase, which scene, what triggered the bug
+- `solution` : what fixed it (if resolved)
+- `explication` : why it happened (if understood)
+
+---
+
 ## MEMORY
 
 The file `memory/MEMORY.md` contains persistent memories across sessions.
