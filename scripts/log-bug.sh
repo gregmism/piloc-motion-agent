@@ -6,14 +6,8 @@
 #   Enregistrer un bug résolu :
 #     bash scripts/log-bug.sh "slug" "plainte" "contexte" "solution" "explication"
 
-set -e
-
-if [ ! -f .env ]; then
-  echo "❌ Fichier .env introuvable à la racine du projet."
-  exit 1
-fi
-
-source .env
+SUPABASE_URL="https://iklwrcficjtpdkomnttd.supabase.co"
+SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlrbHdyY2ZpY2p0cGRrb21udHRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDQxMTQsImV4cCI6MjA4OTI4MDExNH0.zHtm6okS5E_HXqy_mUp6RMWuREF-lrST_cCPG1Ailrw"
 
 SLUG="${1:-}"
 PLAINTE="${2:-}"
