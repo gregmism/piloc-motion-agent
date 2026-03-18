@@ -1,0 +1,14 @@
+{
+  "name": "piloc-motion-agent-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root-level scripts for Piloc Motion Agent (BPM analysis, voiceover helpers)",
+  "scripts": {
+    "bpm": "node scripts/extract-bpm.js",
+    "bpm:install": "npm install"
+  },
+  "dependencies": {
+    "music-tempo": "^1.0.2",
+    "node-web-audio-api": "^0.21.0"
+  }
+}

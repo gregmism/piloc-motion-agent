@@ -1,6 +1,6 @@
 import React from "react";
 import { Composition, registerRoot } from "remotion";
-import { CampagnesDemo } from "./CampagnesDemo";
+import { CampagnesYTDemo } from "./CampagnesYTDemo";
 import { PaiementsEchelonnesLIDemo } from "./PaiementsEchelonnesLIDemo";
 import { PaiementsEchelonnesYT2Demo } from "./PaiementsEchelonnesYT2Demo";
 import { UtilisateursDemo } from "./UtilisateursDemo";
@@ -8,22 +8,13 @@ import { UtilisateursDemo } from "./UtilisateursDemo";
 export const RemotionRoot = () => (
   <>
     <Composition
-      id="CampagnesDemo"
-      component={CampagnesDemo}
+      id="CampagnesYTDemo"
+      component={CampagnesYTDemo}
       fps={30}
       width={1920}
       height={1080}
-      durationInFrames={2048}
+      durationInFrames={2240}
     />
-    <Composition
-      id="CampagnesDemo-Square"
-      component={CampagnesDemo}
-      fps={30}
-      width={1080}
-      height={1080}
-      durationInFrames={2048}
-    />
-
     <Composition
       id="PaiementsEchelonnesLIDemo"
       component={PaiementsEchelonnesLIDemo}
