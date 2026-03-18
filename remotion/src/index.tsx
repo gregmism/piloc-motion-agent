@@ -13,7 +13,15 @@ export const RemotionRoot = () => (
       fps={30}
       width={1920}
       height={1080}
-      durationInFrames={1502}
+      durationInFrames={2048}
+    />
+    <Composition
+      id="CampagnesDemo-Square"
+      component={CampagnesDemo}
+      fps={30}
+      width={1080}
+      height={1080}
+      durationInFrames={2048}
     />
 
     <Composition
@@ -47,6 +55,14 @@ export const RemotionRoot = () => (
       component={UtilisateursDemo}
       fps={30}
       width={1920}
+      height={1080}
+      durationInFrames={1200}
+    />
+    <Composition
+      id="UtilisateursDemo-Square"
+      component={UtilisateursDemo}
+      fps={30}
+      width={1080}
       height={1080}
       durationInFrames={1200}
     />
