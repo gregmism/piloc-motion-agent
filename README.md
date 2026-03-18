@@ -24,13 +24,13 @@ Agent de création vidéo marketing automatisé pour Piloc. Tu fournis un protot
 ```
 [Tu fournis]          [L'agent fait]              [Tu valides / reçois]
 
-Prototype HTML   →   Phase 0 : Intake             →  Story map
+Prototype HTML   →   Phase 0 : Intake (musique?)   →  Story map
 + Scénario           Phase 1 : Analyse
-                     Phase 2 : Storyboard          →  ✋ Approbation storyboard
-                     Phase 2.5 : Pré-plan tech
-                     Phase 4 : Code TSX + rendu    →  Vidéo MP4 dans out/
-                     Phase 5 : Feedback layers     →  ✋ Validation 5 couches
-                                                   →  ✅ Vidéo prête à publier
+                     Phase 2 : Storyboard           →  ✋ Approbation storyboard
+                     Phase 3.5 : Pré-plan tech
+                     Phase 4 : Code TSX + rendu     →  Vidéo MP4 dans out/
+                     Phase 5 : Feedback layers      →  ✋ Validation 5 couches
+                                                    →  ✅ Vidéo prête à publier
 ```
 
 ---
@@ -48,6 +48,43 @@ Dépose dans le dossier `in/` **au moins un** des éléments suivants :
 
 L'agent lit les vraies données du prototype (montants, noms, statuts, KPIs) et les utilise tels quels dans la vidéo. Pas de Lorem ipsum.
 
+### Musique (optionnel)
+
+Dépose un fichier audio dans `in/music/` (formats supportés : mp3, wav, m4a, flac, ogg). L'agent liste les tracks disponibles au démarrage et te propose de choisir.
+
+```
+in/
+├── music/
+│   └── ma-track.mp3    ← dépose ici
+└── prototype.html
+```
+
+**Ce que la musique change :**
+- Les timecodes de la timeline s'alignent automatiquement sur les beats et les bars de la track (BPM détecté)
+- Les scènes entrent sur les bars, les actions clés sur les phrases musicales
+- Le stagger des éléments UI est calé sur le rythme
+
+**Analyser une track manuellement :**
+
+```bash
+node scripts/extract-bpm.js                      # liste toutes les tracks dans in/music/
+node scripts/extract-bpm.js in/music/ma-track.mp3  # analyse une track spécifique
+```
+
+Exemple de sortie (128 BPM) :
+
+```json
+{
+  "bpm": 128,
+  "fps": 30,
+  "beat_frames": 14,
+  "bar_frames": 56,
+  "phrase_frames": 224
+}
+```
+
+Si tu ne veux pas de musique, l'agent applique les valeurs de dwell par défaut (25f minimum entre événements).
+
 ### Le prompt de démarrage
 
 Lance l'agent (`claude`) et décris ton scénario en une ou deux phrases :
@@ -61,6 +98,7 @@ Voix off : Non.
 
 **Paramètres utiles à préciser :**
 - Plateforme cible : `LinkedIn` ou `YouTube`
+- Musique : `Oui` (l'agent liste les tracks disponibles) ou `Non`
 - Voix off : `Oui` (ElevenLabs) ou `Non`
 - Durée souhaitée : `courte (20s)`, `standard (35s)`, `longue (60s)`
 - Langue de la narration si voix off : `Français`
@@ -87,7 +125,7 @@ L'agent produit un storyboard complet avec :
 
 Une fois le storyboard approuvé, l'agent :
 
-1. Écrit le pré-plan technique (timings, spec animations, coordonnées curseur)
+1. Écrit le pré-plan technique (timings, spec animations)
 2. Lit les règles Remotion nécessaires
 3. Génère le fichier `remotion/src/[Feature]Demo.tsx`
 4. Enregistre la composition dans `src/index.tsx`
@@ -135,7 +173,7 @@ Ouvre le fichier. Je vais recueillir ton feedback couche par couche :
   2 · DESIGN      — mise en page des cartes, couleurs, hiérarchie typo
   3 · CONTENU     — valeurs des données, labels, textes, message CTA
   4 · RYTHME      — vitesse générale, temps de dwell, zones mortes
-  5 · ANIMATION   — ressenti des springs, stagger, transitions, curseur
+  5 · ANIMATION   — ressenti des springs, stagger, transitions
 
 On valide dans cet ordre par défaut — chaque couche s'appuie sur la précédente.
 Tu peux sauter directement à n'importe quelle couche si les précédentes te conviennent.
@@ -247,10 +285,15 @@ memory/
 
 ```
 ├── in/                    ← Tes fichiers HTML / screenshots (ignoré par git)
+│   └── music/             ← Tracks audio pour beat-sync (mp3, wav…)
 ├── out/                   ← Vidéos rendues (ignoré par git)
 ├── memory/
 │   └── MEMORY.md          ← Mémoire persistante de l'agent (lisible et modifiable)
-├── remotion/src/          ← Compositions TSX générées par l'agent
+├── remotion/
+│   ├── src/               ← Compositions TSX générées par l'agent
+│   └── public/music/      ← Copies des tracks utilisées dans les compositions
+├── scripts/
+│   └── extract-bpm.js     ← Analyse BPM d'une track audio
 ├── references/            ← Style guide, patterns, art direction
 ├── .agents/skills/        ← Règles Remotion chargées automatiquement
 ├── docs/                  ← Guides d'utilisation détaillés
