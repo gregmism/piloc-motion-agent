@@ -340,8 +340,8 @@ For every animated element, one line:
 ```
 Compute `startMs = Math.round(TL.sceneIn / fps * 1000) + 300`.
 
-#### D — Cursor Waypoints *(if cursor exists)*
-For each waypoint, show the x/y derivation from layout dimensions. Screen space = layout space directly (no camera transform). See `references/patterns` #25.
+#### D — Cursor Waypoints *(only if cursor explicitly requested by user)*
+Skip this section by default. If the user has asked for a cursor, list each waypoint with x/y derived from layout dimensions. Screen space = layout space directly (no camera transform). See `references/patterns` #25.
 
 #### E — Remotion Rules Checklist
 Based on what this video contains, list the exact files to read at Phase 4 start:
@@ -382,11 +382,11 @@ Read `references/patterns` next.
 4. Size for 1080p: cards 900–1560px wide, min row height 52–60px, min text 13px.
 
 **Design rules:**
-- **Minimum font size: 12px — absolute rule.** No text, label, pill, badge, caption, or helper text may use a `fontSize` below 12. This applies everywhere: cards, overlays, step bars, variable pills, table rows, footnotes. If content doesn't fit at 12px, reduce the number of elements shown — never reduce the font.
+- **Minimum font size: 13px — absolute rule.** No text, label, pill, badge, caption, or helper text may use a `fontSize` below 13. This applies everywhere: cards, overlays, step bars, variable pills, table rows, footnotes. If content doesn't fit at 13px, reduce the number of elements shown — never reduce the font.
 - **Panels/drawers/modals:** never pixel-copy. Ask: what's the most valuable info? What actions? Then pick the best form factor.
 - **Dropdowns (central to funnel):** replace with grid selection cards. Stagger in (8–12f), spring-pop selection at dedicated TL keyframe.
 - **Form fields:** always typewriter — never pre-filled. See `references/patterns` #23.
-- **Cursor positioning:** compute world-space coordinates from layout before writing any waypoint. See `references/patterns` #25.
+- **Cursor:** do NOT add a cursor by default. Use the button click animation (pattern #18) to show interactions. Add a cursor only if the user explicitly requests it.
 - **Button click animation:** any button which clicks as part of the user flow must have a spring scale animation. At the click frame, the button scales `1 → 0.93 → 1` using `spring({ frame: frame - clickAt, fps, config: { damping: 18, stiffness: 200 } })` mapped via `interpolate(sc, [0, 1], [1, 0.93])` on the down phase, then the button returns to 1 naturally. See `references/patterns` #18. Buttons that are NOT clicked in the flow (e.g. secondary nav) do not need this.
 
 **File write order:**
