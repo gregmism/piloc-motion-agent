@@ -1,6 +1,6 @@
 # Piloc × Genius — Motion Agent
 
-Agent de création vidéo marketing automatisé pour Piloc. Tu fournis un prototype HTML et un scénario, l'agent produit une vidéo animée prête à publier sur LinkedIn ou YouTube — avec voix off optionnelle, boucle de feedback intégrée, et rendu automatique.
+Agent de création vidéo marketing automatisé pour Piloc. Tu fournis un prototype HTML / Captures d'écran et un scénario, l'agent produit une vidéo animée prête à publier sur LinkedIn ou YouTube — avec musique et voix off optionnelle, boucle de feedback intégrée, et rendu automatique.
 
 ---
 
@@ -64,35 +64,14 @@ in/
 - Les scènes entrent sur les bars, les actions clés sur les phrases musicales
 - Le stagger des éléments UI est calé sur le rythme
 
-**Analyser une track manuellement :**
-
-```bash
-node scripts/extract-bpm.js                      # liste toutes les tracks dans in/music/
-node scripts/extract-bpm.js in/music/ma-track.mp3  # analyse une track spécifique
-```
-
-Exemple de sortie (128 BPM) :
-
-```json
-{
-  "bpm": 128,
-  "fps": 30,
-  "beat_frames": 14,
-  "bar_frames": 56,
-  "phrase_frames": 224
-}
-```
-
-Si tu ne veux pas de musique, l'agent applique les valeurs de dwell par défaut (25f minimum entre événements).
-
 ### Le prompt de démarrage
 
 Lance l'agent (`claude`) et décris ton scénario en une ou deux phrases :
 
 ```
-Crée une vidéo LinkedIn pour la fonctionnalité Campagnes.
-Le scénario : un responsable recouvrement lance une campagne SMS sur
-ses 12 impayés les plus anciens et voit le taux de réponse monter en temps réel.
+Crée une vidéo LinkedIn formt carré pour la fonctionnalité Campagnes.
+Je souhaite que tu mettes en valeur le parcours de création et le dashboard de suivu
+Musique : xxxx
 Voix off : Non.
 ```
 
@@ -100,7 +79,6 @@ Voix off : Non.
 - Plateforme cible : `LinkedIn` ou `YouTube`
 - Musique : `Oui` (l'agent liste les tracks disponibles) ou `Non`
 - Voix off : `Oui` (ElevenLabs) ou `Non`
-- Durée souhaitée : `courte (20s)`, `standard (35s)`, `longue (60s)`
 - Langue de la narration si voix off : `Français`
 
 ---
@@ -111,7 +89,6 @@ L'agent produit un storyboard complet avec :
 - Arc narratif en 4 beats (Contexte → Walkthrough → Action clé → CTA)
 - Objet `TL` avec tous les timecodes nommés
 - Liste des overlays texte
-- Choix d'architecture (Camera A ou Frame-based B)
 
 **Tu réponds :**
 - ✅ `Approuvé` — l'agent passe au code
