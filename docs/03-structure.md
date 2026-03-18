@@ -50,7 +50,11 @@ C'est tout. L'agent lit `CLAUDE.md` automatiquement au démarrage.
 ├── CLAUDE.md                  ← Instructions de l'agent (ne pas modifier)
 │
 ├── in/                        ← Dépose ici tes fichiers HTML et screenshots
+│   └── music/                 ← Tracks audio pour beat-sync (mp3, wav, m4a…)
 ├── out/                       ← Les vidéos rendues apparaissent ici
+│
+├── scripts/
+│   └── extract-bpm.js         ← Analyse le BPM d'une track (Node.js)
 │
 ├── docs/                      ← Cette documentation
 │   ├── 01-prise-en-main.md
@@ -70,6 +74,7 @@ C'est tout. L'agent lit `CLAUDE.md` automatiquement au démarrage.
     │   ├── Icons.tsx          ← Logo Piloc + icônes SVG
     │   └── [Feature]Demo.tsx  ← Un fichier par vidéo
     └── public/
+        ├── music/             ← Copies des tracks utilisées dans les compositions
         └── voiceover/         ← Fichiers MP3 des voix off (si activées)
 ```
 
@@ -83,6 +88,13 @@ Le dossier d'entrée. L'agent lit automatiquement ce qu'il contient en Phase 1. 
 - Des `.png` / `.jpg` — utiles pour montrer un état particulier ou un écran difficile à déduire du HTML
 
 Pas besoin de préciser le chemin dans ton prompt — l'agent sait où chercher.
+
+### `in/music/`
+Les tracks audio pour le beat-sync. L'agent détecte les fichiers présents au démarrage (Phase 0) et te propose de choisir. Formats supportés : mp3, wav, m4a, flac, ogg.
+
+Quand une track est sélectionnée, le script `scripts/extract-bpm.js` l'analyse automatiquement et retourne le BPM, le nombre de frames par beat/bar/phrase. Tous les keyframes de la timeline sont ensuite calés sur cette grille — les scènes entrent sur les bars, les listes se staggerent sur les beats.
+
+L'agent copie aussi la track vers `remotion/public/music/` avant le render pour que Remotion puisse y accéder.
 
 ### `out/`
 Les vidéos rendues. Format de nommage : `YYYY-MM-DD-nom-de-la-feature.mp4`. Chaque render est un nouveau fichier — rien n'est écrasé.
@@ -116,11 +128,11 @@ C'est le registre central. Chaque vidéo doit y être déclarée pour être visi
 
 | Fichier | ID | Durée | Plateforme |
 |---|---|---|---|
-| `CampagnesDemo.tsx` | `CampagnesDemo` | ~50s | YouTube |
+| `CampagnesYTDemo.tsx` | `CampagnesYTDemo` | ~68s | YouTube |
 | `PaiementsEchelonnesLIDemo.tsx` | `PaiementsEchelonnesLIDemo` | ~40s | LinkedIn 16:9 |
 | `PaiementsEchelonnesLIDemo.tsx` | `PaiementsEchelonnesLIDemo-Square` | ~40s | LinkedIn 1:1 |
 | `PaiementsEchelonnesYT2Demo.tsx` | `PaiementsEchelonnesYT2Demo` | ~50s | YouTube |
-| `UtilisateursDemo.tsx` | `UtilisateursDemo` | ~40s | YouTube |
+| `UtilisateursDemo.tsx` | `UtilisateursDemo` | ~40s | LinkedIn |
 
 ---
 
@@ -173,6 +185,8 @@ Chaque fichier vidéo suit toujours le même ordre interne :
 
 **`const TL`** est la clé de toute la vidéo. C'est un objet qui nomme chaque frame significatif :
 
+Sans musique (dwell fixe 25f) :
+
 ```ts
 const TL = {
   heroIn:     0,    // 0.0s — ouverture
@@ -180,8 +194,22 @@ const TL = {
   dashIn:     90,   // 3.0s — dashboard
   kpiIn:      106,  // 3.5s — KPIs comptent
   tableIn:    130,  // 4.3s — tableau apparaît
-  clickAt:    268,  // 8.9s — curseur clique
+  clickAt:    268,  // 8.9s — clic bouton
   ctaIn:      480,  // 16s  — scène finale
+};
+```
+
+Avec musique à 128 BPM (beat=14f, bar=56f, phrase=224f) :
+
+```ts
+const TL = {
+  heroIn:     0,    // 0.0s — ouverture
+  heroTitle:  14,   // 0.5s — +1 beat
+  dashIn:     56,   // 1.9s — +1 bar (entrée sur le temps)
+  kpiIn:      70,   // 2.3s — +1 beat après dashIn
+  tableIn:    112,  // 3.7s — +1 bar
+  clickAt:    168,  // 5.6s — +2 bars (action clé sur le temps)
+  ctaIn:      448,  // 14.9s — +2 phrases musicales
 };
 ```
 

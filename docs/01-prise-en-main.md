@@ -18,6 +18,21 @@ Mets dans le dossier `in/` l'un ou plusieurs de ces éléments :
 
 L'agent lit ce dossier automatiquement en Phase 1. Tu n'as pas à préciser le chemin.
 
+### Musique (optionnel)
+
+Dépose un fichier audio dans `in/music/` — l'agent le détecte automatiquement au démarrage et te propose de l'utiliser.
+
+```
+in/
+├── music/
+│   └── ma-track.mp3   ← mp3, wav, m4a, flac ou ogg
+└── prototype.html
+```
+
+Quand une track est sélectionnée, **tous les keyframes de la timeline s'alignent sur le rythme** : les scènes entrent sur les bars, les actions clés sur les phrases musicales, les listes se staggerent sur les beats. Le résultat est naturellement plus percutant qu'avec des timings arbitraires.
+
+Si tu ne veux pas de musique, l'agent utilise les valeurs de dwell par défaut (25 frames minimum entre événements).
+
 ---
 
 ## Étape 2 — Lance l'agent avec le bon prompt
@@ -48,6 +63,7 @@ Fichier(s) : [fichiers dans in/]
 Plateforme : LinkedIn / YouTube / Les deux
 Durée cible : 30s / 60s / 90s
 Architecture : A (caméra zoom) / B (multi-scènes) — optionnel, l'agent choisit
+Musique : Oui (l'agent liste les tracks dans in/music/) / Non
 Voix off : Oui (ElevenLabs) / Non
 Format carré : Oui / Non — pour LinkedIn mobile 1:1
 
@@ -75,11 +91,11 @@ CTA :
 
 | Phase | Ce que fait l'agent | Ce que tu fais |
 |---|---|---|
-| **0 — Intake** | Extrait le protagoniste, le parcours, le moment de valeur | — |
+| **0 — Intake** | Pose la question musique, extrait le protagoniste, le parcours, le moment de valeur | — |
 | **1 — Analyse** | Lit les fichiers dans `in/`, produit une Story Map | — |
-| **2 — Storyboard** | Découpe en scènes avec timings, architecture et overlays | — |
+| **2 — Storyboard** | Découpe en scènes avec timings (beat-sync si musique), architecture et overlays | — |
 | **3 — Approbation** | Présente le storyboard | **Tu valides ou tu demandes des modifications** |
-| **2.5 — Pré-plan** | Calcule tous les timings, coordonnées et specs d'animation | — |
+| **3.5 — Pré-plan** | Calcule tous les timings, beat grid et specs d'animation | — |
 | **4 — Exécution** | Écrit le TSX et rende la vidéo | — |
 
 **Tu n'interviens qu'une seule fois.** Un bon brief en Phase 3 évite un re-render complet.
@@ -92,6 +108,7 @@ CTA :
 |---|---|---|
 | `Architecture A` | Caméra qui zoom/pan sur un seul écran | Demo d'une feature sur un dashboard unique |
 | `Architecture B` | Plusieurs scènes indépendantes enchaînées | Workflow multi-étapes, plusieurs features |
+| `Musique` | Track dans `in/music/`, timeline beat-sync | Quand tu veux un rendu percutant et rythmé |
 | `Voix off` | ElevenLabs, sync frame-perfect | YouTube, présentations, vidéos sans musique |
 | `Format carré` | 1080×1080 en plus du 16:9 | LinkedIn mobile — occupe plus d'espace dans le feed |
 | `Durée` | 20–45s LinkedIn / 45–90s YouTube | LinkedIn : va à l'essentiel. YouTube : tu peux développer |
@@ -117,13 +134,14 @@ La dette passe de rouge à verte et un SMS de confirmation part automatiquement.
 CTA : "Proposez des échéanciers en 1 clic — piloc.fr"
 ```
 
-### Exemple 2 — Complet, YouTube 60s
+### Exemple 2 — Complet, YouTube 60s avec musique
 
 ```
 Feature : Campagnes de relance multi-canal
 Fichier : campagnes.html + campagnes-detail.png
 Plateforme : YouTube 60s + LinkedIn square
 Architecture : B (multi-scènes)
+Musique : Oui
 Voix off : Oui
 
 Scénario :
