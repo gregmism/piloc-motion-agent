@@ -1,265 +1,160 @@
-# Storyboard Output Format
- 
+# Storyboard Output Format — Piloc Motion Agent
+
+This template defines the exact structure of a Phase 2 storyboard.
+Read this file before drafting any storyboard. Do not deviate from this format.
+
+---
+
 ## Template
- 
+
 ```
-## STORYBOARD: [Product] — [Platform] [Duration]
-Total Length: [Xs] | Total Frames: [N] @ 30fps | Elements: [#] | Scenes: [#]
-Dimensions: [W×H] | Tone: [style] | Arc: [A/B/C/D / Cinematic]
-UI Source: [TSX from HTML / Screenshots / Screen recording / None]
-Architecture: [A — Camera-based / B — Frame-based]
- 
+## STORYBOARD: [Feature] — [Platform] [Duration]
+Total Length: [Xs] | Total Frames: [N] @ 30fps | Scenes: [#]
+Dimensions: [W×H] | Platform: [LinkedIn 16:9 / LinkedIn 16:9 + Square / YouTube]
+Music: [track name + BPM, or "none"]
+UI Source: [HTML prototype / Screenshots / Both]
+
 ---
- 
+
 ### SCENE [N]: [SCENE NAME]
- 
-### ELEMENT [N] ([start]–[end]) | Frames: [FROM]–[TO] | durationInFrames: [N]
- 
-VO/Audio: "[exact words or sound cue]"
-Visual: [description]
-Shot Type: [Wide / Medium / Close / Screen / TSX UI / Animation / AI-gen]
-Source: [TSX (from HTML) / Screen recording / Stock / AI-gen / Screenshot / Remotion]
- 
-[Source-specific block — only include the relevant one:]
- 
-If TSX (from HTML):
-  Component: [ComponentName]
-  Highlight: [sub-section to zoom into]
-  Interaction: [animation behavior]
- 
-If Stock:
-  Keywords: [search terms]
- 
-If AI-gen:
-  Prompt: "[full generation prompt]"
- 
-If Screen:
-  Notes: [flow to record]
- 
-Text Overlay: "[on-screen text]"
-Text Animation: [Fade / Pop / Slide-up / Velocity-slide / Typewriter / Glitch / None]
-Transition to next: [Cut / Fade / Dissolve / Slide / Scale / Wipe]
- 
-Remotion Animation Spec:
-  - Entry: [e.g. opacity 0→1 over frames 0–12]
-  - Motion: [e.g. translateY 30→0 over frames 0–20, easeOut]
-  - Exit: [e.g. scale 1→1.05 + opacity 1→0 over frames 80–90]
-  - Key hooks: [interpolate / spring / useVideoTexture / etc.]
- 
+Frames: [sceneIn]–[sceneOut] ([Xs])
+SceneHeadline: chip=[PILOC · FEATURE] | title=[white part] | accent=[mist part]
+
+Story beat: [what this scene communicates — one sentence]
+UI elements shown: [list of 2–5 components, e.g. "KPI strip (3 cards), table (5 rows)"]
+Key animation event: [the one thing that happens, e.g. "badge flips VALIDÉ at frame 268"]
+
+Remotion Animation Notes:
+  - Entry: [fade + slide description, start frame]
+  - Key events: [frame → what changes]
+  - Exit: [fdOut description, end frame]
+
 ---
- 
-### PRODUCTION NOTES
-Music: [style, BPM, mood]
-Pacing: [Fast / Medium / Breathing / Mixed — describe the arc]
-Color: [brand-matched / cinematic dark / warm / cool]
-Style: [Polished SaaS / Native / Cinematic / B2B]
-Captions: [required / optional]
- 
-### REMOTION SCAFFOLD
-[Full file structure, composition config, scene frame map, asset checklist]
+
+### DRAFT TIMELINE (const TL)
+[Sketch of scene boundaries — exact values computed in Phase 3.5 Section A]
+heroIn: 0
+heroOut: ~80
+dashIn: ~90
+...
+ctaIn: ~[N]
+totalDur: ~[N] ([Xs])
+
+---
+
+### ASSET CHECKLIST
+- [ ] SVG icon paths: [list from HTML symbols]
+- [ ] Data values: [real values extracted from HTML/screenshots]
+- [ ] Music: [in/music/track.mp3 — confirmed present / not needed]
+- [ ] Voiceover: [yes/no — to confirm in Phase 3]
 ```
- 
+
 ---
- 
-## Worked Example: App Intro (30s, LinkedIn 16:9, TSX UI)
- 
+
+## Architecture rules (always apply)
+
+- **Single file per video:** `remotion/src/videos/[Feature]Demo.tsx` — self-contained, no sub-files.
+- **Frame-based architecture:** multiple `AbsoluteFill` scenes, each fades in/out by TL. Each scene returns `null` outside its window. See `references/patterns` #12.
+- **No TextOverlay component.** The SceneHeadline title IS the narrative for muted viewers.
+- **No `@remotion/google-fonts`.** Use `waitForInter()` from `./fonts`.
+- **No multi-file structure** (no `Root.tsx`, no `compositions/`, no `scenes/`, no `ui/`).
+- **Background:** `#0E1029` flat, no SVG, no gradient.
+- **Registration:** after writing the file, add it to `src/index.tsx` with `id` = filename without `.tsx`.
+
+---
+
+## Worked Example: Campagnes — LinkedIn 30s
+
 ```
-## STORYBOARD: Atlas — LinkedIn 30s App Intro
-Total Length: 30s | Total Frames: 900 @ 30fps | Elements: 7 | Scenes: 5
-Dimensions: 1920×1080 | Tone: Polished SaaS | Arc: B — App Intro
-UI Source: TSX from HTML (dashboard.html, analytics.html)
- 
+## STORYBOARD: Campagnes — LinkedIn 16:9 + Square 30s
+Total Length: 30s | Total Frames: 900 @ 30fps | Scenes: 4
+Dimensions: 1920×1080 (+ 1080×1080 square) | Platform: LinkedIn
+Music: none
+UI Source: HTML prototype + screenshots
+
 ---
- 
-### SCENE 1: HOOK
- 
-### ELEMENT 1 (0:00–0:03) | Frames: 0–90 | durationInFrames: 90
- 
-VO/Audio: "What if your entire business fit on one screen?"
-Visual: Black background. Bold white text materializes. No product yet.
-Shot Type: Kinetic typography — full screen
-Source: Remotion
- 
-Text Overlay: "WHAT IF YOUR ENTIRE BUSINESS FIT ON ONE SCREEN?"
-Text Animation: Velocity-slide (line by line, 8 frames apart)
-Transition to next: Fade to dark
- 
-Remotion Animation Spec:
-  - Line 1: translateX interpolate([0, 10], [-600, 0]), Easing.out(Easing.cubic), clamp
-  - Line 2: same, delayed 8 frames
-  - Hold frames 30–80
-  - Exit: opacity interpolate([75, 90], [1, 0])
-  - Key hooks: interpolate, Easing
- 
+
+### SCENE 1: HERO
+Frames: 0–80 (2.7s)
+SceneHeadline: chip=PILOC · CAMPAGNES | title=Relancez vos impayés | accent=sans effort
+
+Story beat: Brand entry — establish product identity, hook the viewer before any UI.
+UI elements shown: PilocLogo + chip + two-line kinetic title
+Key animation event: Logo spring-in at frame 0, title lines slide up staggered at +14/+24.
+
+Remotion Animation Notes:
+  - Logo: spring scale 0.7→1, damping:18 stiffness:120, frame 0
+  - Chip: fade+translateY, frame 12
+  - Line 1: translateY(18→0) + opacity, frame 20
+  - Line 2: translateY(18→0) + opacity, frame 30
+  - Exit: fdOut all elements at heroOut-16
+
 ---
- 
-### SCENE 2: PRODUCT REVEAL
- 
-### ELEMENT 2 (0:03–0:07) | Frames: 90–210 | durationInFrames: 120
- 
-VO/Audio: "Meet Atlas."
-Visual: Atlas logo springs into center on dark background. Tagline typewriters below.
-Shot Type: Logo reveal — animation
-Source: Remotion + brand asset (logo.svg)
- 
-Text Overlay: "ATLAS" (logo) + "Your business dashboard, reimagined."
-Text Animation: Logo: spring pop. Tagline: typewriter starting frame 30.
-Transition to next: Scale zoom into dashboard
- 
-Remotion Animation Spec:
-  - Logo scale: spring({ frame, fps, config: { stiffness: 120, damping: 12 } })
-  - Glow burst: opacity interpolate([0, 4, 20], [0, 1, 0]) on radial gradient behind logo
-  - Tagline typewriter: charsVisible = Math.floor(interpolate([30, 90], [0, tagline.length]))
-  - Transition: scale interpolate([100, 120], [1, 1.3]) + opacity interpolate([110, 120], [1, 0])
-  - Key hooks: spring, interpolate
- 
+
+### SCENE 2: DASHBOARD
+Frames: 90–310 (7.3s)
+SceneHeadline: chip=PILOC · CAMPAGNES | title=Visualisez vos relances | accent=en un coup d'œil
+
+Story beat: Beat 1 — dashboard loads, operator sees the full state of their campaigns at a glance.
+UI elements shown: KPI strip (3 cards: Taux de recouvrement, Montant relancé, Campagnes actives), campaign table (5 rows)
+Key animation event: KPIs count up simultaneously at frame 106. Table appears at 126, all rows fade in together.
+
+Remotion Animation Notes:
+  - Scene fade: opacity 0→1, frames 90–106
+  - KPIs: simultaneous, spring opacity frame 106, count up 106→190
+  - Table card: fade+translateY(10→0), frame 126
+  - Rows: simultaneous opacity 0→1, frames 138–154 (Beat 1 initial load)
+  - Badges + progress bars: stagger 6f/row starting frame 154
+  - Exit: fdOut at dashOut-20
+
 ---
- 
-### SCENE 3: FEATURE 1 — DASHBOARD
- 
-### ELEMENT 3 (0:07–0:13) | Frames: 210–390 | durationInFrames: 180
- 
-VO/Audio: "All your KPIs, live."
-Visual: Full Atlas dashboard TSX UI materializes — panels slide in from edges. Chart draws itself. KPI numbers count up.
-Shot Type: TSX UI — full dashboard
-Source: TSX (from HTML) — ui/Dashboard.tsx
- 
-Component: Dashboard
-Highlight: KPI stat cards (top row) then main chart
-Interaction: Panels slide in staggered, chart line draws, numbers count up
- 
-Text Overlay: "LIVE KPIs · REAL-TIME" (top-left, small, fades in frame 60)
-Text Animation: Fade
-Transition to next: Slow push-in toward chart panel
- 
-Remotion Animation Spec:
-  - dashboardProgress: interpolate([0, 30], [0, 1]) — overall entry
-  - statCard[i]: spring({ frame: frame - i * 8, fps, config: { stiffness: 100, damping: 18 } }) — stagger
-  - chartProgress: interpolate([40, 150], [0, 1]) — line draws
-  - kpiValue: Math.round(interpolate([20, 110], [0, targetValue]))
-  - Camera push: scale interpolate([90, 180], [1, 1.18]), translateY interpolate([90, 180], [0, -60])
-  - Key hooks: spring, interpolate, useCurrentFrame
- 
+
+### SCENE 3: CAMPAGNE DETAIL
+Frames: 320–620 (10s)
+SceneHeadline: chip=PILOC · CAMPAGNES | title=Choisissez le bon canal | accent=par segment
+
+Story beat: Beat 2 — operator selects a campaign and configures the send channel.
+UI elements shown: Campaign detail card (name, status, canal selector as grid cards)
+Key animation event: Canal grid cards stagger in at frame 380. Selection spring-pops at frame 450.
+
+Remotion Animation Notes:
+  - Detail card: spring translateY(20→0) + opacity, frame 320
+  - Canal cards (×3): stagger 10f, spring scale 0→1, frames 380/390/400
+  - Selected card: spring scale 1→1.05→1 (spring pop) at frame 450
+  - Confirmation badge: fade+scale, frame 490
+  - Exit: fdOut at scene3Out-20
+
 ---
- 
-### ELEMENT 4 (0:13–0:17) | Frames: 390–510 | durationInFrames: 120
- 
-VO/Audio: "Drill into anything."
-Visual: Camera zooms into a single chart bar. A tooltip appears. Sub-breakdown panel slides in from right.
-Shot Type: TSX UI — close-up zoom on chart
-Source: TSX (from HTML) — ui/Chart.tsx + ui/DrilldownPanel.tsx
- 
-Component: Chart (with DrilldownPanel)
-Highlight: Single bar → tooltip → side panel
-Interaction: Tooltip fade in, panel slides from right
- 
-Text Overlay: NONE
-Transition to next: Wipe right
- 
-Remotion Animation Spec:
-  - Zoom: scale interpolate([0, 40], [1.18, 2.2]), translateX/Y toward bar target position
-  - Tooltip: opacity interpolate([30, 45], [0, 1]), translateY interpolate([30, 45], [8, 0])
-  - Panel: translateX interpolate([50, 80], [400, 0]), opacity interpolate([50, 65], [0, 1])
-  - Key hooks: interpolate, Easing.out
- 
+
+### SCENE 4: CTA
+Frames: 630–900 (9s)
+SceneHeadline: (none — Hero-loop format)
+
+Story beat: Beat 4 — brand close, invite to act.
+UI elements shown: PilocLogo + chip PILOC · CAMPAGNES + two-line kinetic title
+Key animation event: Logo spring-in at ctaIn, chip +12, line1 +20, line2 +30. Hold ≥3s.
+
+Remotion Animation Notes:
+  - Logo: spring scale 0.7→1, damping:18 stiffness:120
+  - Chip: fade+translateY, ctaIn+12
+  - Line 1 (white): translateY(18→0), ctaIn+20
+  - Line 2 (mist accent): translateY(18→0), ctaIn+30
+  - No exit — holds to end
+
 ---
- 
-### SCENE 4: FEATURE 2 — COLLABORATION
- 
-### ELEMENT 5 (0:17–0:22) | Frames: 510–660 | durationInFrames: 150
- 
-VO/Audio: "Your whole team, in sync."
-Visual: Atlas team view TSX UI — user avatars appear, activity feed updates in real time, a comment thread slides in.
-Shot Type: TSX UI — team activity view
-Source: TSX (from HTML) — ui/TeamView.tsx
- 
-Component: TeamView
-Highlight: Activity feed + comment thread
-Interaction: Feed items appear staggered, avatars pop in, comment slides from bottom
- 
-Text Overlay: "TEAM · REAL-TIME COLLABORATION"
-Text Animation: Slide-up, frame 80
-Transition to next: Cut
- 
-Remotion Animation Spec:
-  - Avatar[i]: spring({ frame: frame - i * 6, fps, config: { stiffness: 180, damping: 16 } })
-  - Feed item[i]: translateY interpolate([i*8, i*8+20], [20, 0]), opacity interpolate([i*8, i*8+15], [0, 1])
-  - Comment panel: translateY interpolate([70, 100], [80, 0]), opacity interpolate([70, 85], [0, 1])
-  - Key hooks: spring, interpolate
- 
+
+### DRAFT TIMELINE (const TL)
+heroIn:   0,    heroOut:  80,
+dashIn:   90,   kpiAll:   106,  tableIn: 126,  rowsIn: 138,
+scene3In: 320,  canalGrid: 380, canalSel: 450, scene3Out: 620,
+ctaIn:    630,  totalDur: 900,  // 30s ✓ LinkedIn
+
 ---
- 
-### SCENE 5: CTA
- 
-### ELEMENT 6 (0:22–0:27) | Frames: 660–810 | durationInFrames: 150
- 
-VO/Audio: "Try Atlas free — no setup required."
-Visual: Dark background, logo centered, CTA button pulses, URL below.
-Shot Type: Animation — CTA card
-Source: Remotion
- 
-Text Overlay: "TRY ATLAS FREE" + "atlas.io" below
-Text Animation: CTA: spring pop. URL: typewriter.
-Transition to next: Hold
- 
-Remotion Animation Spec:
-  - CTA text: spring({ frame, fps, config: { stiffness: 140, damping: 12 } }) on scale
-  - Button glow: filter drop-shadow with Math.sin(frame/10)*4 + 10 radius
-  - URL typewriter: interpolate([30, 70], [0, url.length])
-  - Key hooks: spring, Math.sin, interpolate
- 
----
- 
-### ELEMENT 7 (0:27–0:30) | Frames: 810–900 | durationInFrames: 90
- 
-VO/Audio: [music fade out]
-Visual: Logo + tagline hold. Clean end card.
-Shot Type: Static hold
-Source: Remotion
- 
-Text Overlay: "ATLAS · atlas.io"
-Text Animation: None — already visible from Element 6
-Transition to next: None (end)
- 
-Remotion Animation Spec:
-  - Subtle logo breathe: scale = 1 + Math.sin(frame / 20) * 0.006
-  - Key hooks: Math.sin
- 
----
- 
-### PRODUCTION NOTES
-Music: Minimal electronic, 110BPM, clean and focused, fades last 5s
-Pacing: Medium — confident, not rushed. Breathing room in Feature scenes.
-Color: Brand-matched (extract from design-tokens.ts)
-Style: Polished SaaS — sharp, no decorative clutter
-Captions: Required (LinkedIn 85% muted) — burn in white text, bottom center
- 
-### ASSETS NEEDED
-- [ ] Logo: atlas-logo.svg
-- [ ] Audio: background.mp3 (110BPM, 30s)
-- [ ] Font: from design-tokens.ts (via @remotion/google-fonts)
-- [ ] HTML files: dashboard.html, analytics.html (already provided → run html-to-tsx pipeline)
- 
-### REMOTION SCAFFOLD
-src/
-├── Root.tsx                     (fps=30, 1920×1080, durationInFrames=900)
-├── compositions/AtlasIntro.tsx
-├── scenes/
-│   ├── Hook.tsx                 (frames 0–90)
-│   ├── ProductReveal.tsx        (frames 90–210)
-│   ├── FeatureDashboard.tsx     (frames 210–510)
-│   ├── FeatureTeam.tsx          (frames 510–660)
-│   └── CTA.tsx                  (frames 660–900)
-├── ui/
-│   ├── design-tokens.ts
-│   ├── Dashboard.tsx
-│   ├── Chart.tsx
-│   ├── DrilldownPanel.tsx
-│   └── TeamView.tsx
-├── components/
-│   ├── AnimatedText.tsx
-│   └── LogoReveal.tsx
-└── lib/
-    └── animations.ts
+
+### ASSET CHECKLIST
+- [ ] SVG icon paths: envelope, phone, sms (extract from HTML symbols)
+- [ ] Data values: KPI numbers from HTML (taux 73%, montant 48 200 €, campagnes 12)
+- [ ] Campaign table rows: 5 rows with real names/statuses from HTML
+- [ ] Music: none (LinkedIn — 85% muted)
+- [ ] Voiceover: to confirm in Phase 3
 ```
- 

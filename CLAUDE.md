@@ -52,11 +52,11 @@ ls -d in/ out/ remotion/node_modules/ .agents/skills/remotion-best-practices/rul
 **If everything is OK → confirm in one line and move straight to Phase 0.**
 Do not list successful checks one by one — just continue.
 
-**If an existing `[Feature]Demo.tsx` is open or mentioned by the user → skip Phase 0 music intake and ask instead:**
-> « Tu veux modifier une vidéo existante ou en créer une nouvelle ?
-> - ✏️ Modifier [nom] — dis-moi ce que tu veux changer
+**If the user mentions a video by its ID (e.g. `01A - Campagnes`) or says "modify [video name/id]" → skip Phase 0 and ask instead:**
+> « Tu veux produire une nouvelle variante de `{id}{variant} - {Name}` ou créer une nouvelle vidéo ?
+> - ✏️ Variante — décris les changements, je produis `{id}{next variant} - {Name} - {today}`
 > - 🆕 Nouvelle vidéo — je démarre Phase 0 »
-Do not ask about music for an existing composition unless the user explicitly wants to add it.
+Do not ask about music when producing a variant unless the user explicitly wants to change or add it.
 
 ---
 
@@ -93,15 +93,32 @@ bash scripts/log-bug.sh "composition-id" "complaint" "context" "solution applied
 
 ## MEMORY
 
-The file `memory/MEMORY.md` contains persistent memories across sessions.
+The file `memory/MEMORY.md` is the index of persistent memories across sessions. Individual memory files live in `memory/` alongside it.
 
-**At the start of every conversation:** read `memory/MEMORY.md`.
+**At the start of every conversation:** read `memory/MEMORY.md` to load the index, then read the individual files it points to that are relevant to the current task.
 
-**After every ✅ approval (Phase 5 sign-off):** append any non-obvious decision to `memory/MEMORY.md`:
+**After every ✅ approval (Phase 5 sign-off):** save any non-obvious decision as a new memory file using the auto-memory format:
+
+1. Write a file `memory/[topic].md` with this frontmatter:
+```markdown
+---
+name: [short name]
+description: [one-line hook — used to decide relevance in future sessions]
+type: feedback
+---
+
+[The rule or observation.]
+**Why:** [what motivated this preference — timing issue, user correction, render feedback]
+**How to apply:** [when this kicks in — platform, composition type, scene type]
 ```
-- [date] [composition-id] : [preference or decision observed]
+
+2. Add a pointer in `memory/MEMORY.md`:
 ```
-Examples: timing preferences that differ from defaults, platform-specific sizing decisions, narrative choices. Do not memorise anything already covered by the rules in this file.
+- [Title](file.md) — one-line hook
+```
+
+**What to save:** timing preferences that differ from defaults, platform-specific sizing decisions, narrative or copy choices, corrections given during Phase 5 iteration.
+**What NOT to save:** anything already covered by the rules in this file, code patterns derivable from `references/patterns`, git history.
 
 ---
 
@@ -110,22 +127,24 @@ Examples: timing preferences that differ from defaults, platform-specific sizing
 | When | Read this file |
 |------|---------------|
 | Phase 2 — before drafting any storyboard | `references/output` |
+| **Phase 2 + Phase 4 — before any copy, headline, overlay, voiceover, or CTA line** | **`references/piloc-brand-vocabulary.md`** |
 | Phase 4 — before writing any TSX | `references/patterns` |
-| Phase 4 — understanding HTML structure | `references/html_to_tsx` |
+| Phase 1/4 — extracting data from HTML (real values, state machine, SVG icon paths, interaction sequences) | `references/html_to_tsx` |
 | Cinematic / launch / phonk / beat-sync brief | `references/cinematic` |
 | Remotion API question or edge case | see **Remotion skills** table below |
 
 **Do not write code before reading `references/patterns`.**
+**Do not write any on-screen text, headline, overlay, or voiceover line before reading `references/piloc-brand-vocabulary.md`.**
 
 ### Remotion skills — read only what you need
 
-Located in `.agents/skills/remotion-best-practices/rules/`. Read the specific file when the situation arises — do not read all files upfront.
+Located in `.agents/skills/remotion-best-practices/rules/`. Three files are mandatory at Phase 4 start — the rest are conditional, read only when the situation arises.
 
 | Situation | File |
 |-----------|------|
-| **Always — core animation primitives (`interpolate`, `spring`, `useCurrentFrame`)** | `animations.md` |
-| **Always — spring presets, `Easing`, `durationInFrames`** | `timing.md` |
-| **Always — `<Sequence>`, `<Series>`, scene delay, premounting** | `sequencing.md` |
+| **Mandatory at Phase 4 — core animation primitives (`interpolate`, `spring`, `useCurrentFrame`)** | `animations.md` |
+| **Mandatory at Phase 4 — spring presets, `Easing`, `durationInFrames`** | `timing.md` |
+| **Mandatory at Phase 4 — `<Sequence>`, `<Series>`, scene delay, premounting** | `sequencing.md` |
 | Trimming animation start with negative `from` on `<Sequence>` | `trimming.md` |
 | Music track in composition (`<Audio>` component, volume, looping) | `audio.md` |
 | Per-scene ElevenLabs voiceover + `calculateMetadata` | `voiceover.md` |
@@ -162,12 +181,12 @@ Located in `.agents/skills/remotion-best-practices/rules/`. Read the specific fi
 
 **Every video uses Dark Navy.** There is no light mode. Do not use `#f8f9fa` backgrounds or any Apple-style aesthetic.
 
-- **Background:** `#0E1029` flat — no SVG, no gradient, ever.
+- **Background:** Dark navy `#0E1029` base. Three branded SVG backgrounds are available in `references/` — use one if selected in Phase 0 (see BACKGROUND section below). Never use gradients, particles, or arbitrary SVG backgrounds outside of these three files.
 - **Cards:** `rgba(255,255,255,0.97)`, `borderRadius: 16`, shadow `0 20px 60px rgba(0,0,0,0.28)`. White cards float on the dark background for all product UI scenes.
 - **Headline:** white, `fontWeight: 800–900`, `letterSpacing: -1.5` to `-4.5`. Accent word in `#9DB8EE`.
 - **Chip:** `rgba(157,184,238,0.14)` bg, `rgba(157,184,238,0.30)` border, `rgba(255,255,255,0.72)` text, `letterSpacing: 2.2`, uppercase.
 - **Motion:** `spring` with `damping: 22–28`, `stiffness: 120–160`. Fade + slide, no bounces.
-- **Rhythm:** 25f minimum dwell between event starts (absolute rule — never below this). First content element appears at `sceneIn+20`.
+- **Rhythm:** 25f minimum dwell between event starts (absolute rule — never below this). First content element appears at `sceneIn+20`. *(When music is active, beat grid values replace these defaults — see MUSIC section.)*
 - **Accent / mist:** `#9DB8EE`. Success: `#329547`. Error: `#ec6369`. Warning: `#ffb704`.
 - **Duration:** 20–45s LinkedIn, 45–90s YouTube.
 
@@ -179,15 +198,15 @@ Located in `.agents/skills/remotion-best-practices/rules/`. Read the specific fi
 
 ### Stagger vs. simultaneous
 
-- **Stagger (8–12f):** List items, table rows, feature pills.
+- **Stagger (8–12f):** List items, table rows, feature pills. *(When music is active, `stagger_unit = beat_frames` from the MUSIC section overrides this range.)*
 - **Simultaneous:** KPI cards — unified dashboard state, same `startAt`.
 
 ### Timing coherence — verify before writing TL
 
 1. One rhythm unit per scene — pick 18f or 24f and stick to it for similar events. *(Rhythm unit = duration of an individual entry animation, not the gap between events.)*
-2. Minimum 25f dwell between events (never 20f — 25f is the floor). *(Dwell = minimum pause between event starts — distinct from animation duration above.)*
+2. Minimum 25f dwell between events (never 20f — 25f is the floor). *(Dwell = minimum pause between event starts — distinct from animation duration above. When music is active, `bar_frames` replaces 25f as the minimum.)*
 3. Similar event density across all scenes.
-4. No dead zones >60f — add text overlay or secondary beat.
+4. No dead zones >60f — add a secondary beat or a SceneHeadline transition.
 5. Fade-in ≈ fade-out duration (within ±4f).
 6. First scene element visible by `sceneIn + 20`.
 7. Write the TL comment block first:
@@ -202,9 +221,8 @@ Located in `.agents/skills/remotion-best-practices/rules/`. Read the specific fi
 ## 2. PLATFORM CONSTRAINTS
 
 ### LinkedIn
-- **85% muted autoplay → text overlays are mandatory.** Every key action labeled on screen.
+- **85% muted autoplay → every key action must be named in the SceneHeadline title.** No TextOverlay component — the brand copy in the title carries the narrative for muted viewers.
 - Format: 1920×1080. Duration: 20–45s. No black cold open.
-- Captions: white text, dark pill bg, bottom-center safe zone.
 - **Always produce two renders:** 16:9 (1920×1080) + 1:1 square (1080×1080). Use `useVideoConfig()` for adaptive layout.
 
 ### YouTube
@@ -225,14 +243,16 @@ App loads. KPIs count up. Table rows appear.
 1. Scene fade-in (~16f)
 2. All KPIs simultaneously (single `startAt`)
 3. Table ~20f after KPIs
-4. All rows at once (simultaneous fade)
+4. All rows simultaneously (single fade — first appearance of the table only)
 5. Badges + progress bars stagger (6f/row)
 
+*(Stagger 8–12f applies to rows that appear after a user interaction — Beat 2/3. The initial table load in Beat 1 is always simultaneous to convey a live dashboard state loading all at once.)*
+
 ### Beat 2 — WALKTHROUGH (20–65%)
-Dedicated scenes, one feature at a time. Text overlay labels every action.
+Dedicated scenes, one feature at a time. The SceneHeadline title names every key action.
 
 ### Beat 3 — KEY ACTION (overlaps end of Beat 2)
-The moment of truth: badge flips, panel opens, number changes. Equal gaps (~36f) between state changes. 50f pause after negative event before resolution.
+The moment of truth: badge flips, panel opens, number changes. Equal gaps (~36f) between state changes. 50f pause after negative event before resolution (or the nearest `bar_frames` multiple ≥ 50f when music is active — e.g. 56f at 128 BPM).
 
 ### Beat 4 — CTA (last 15–20%)
 
@@ -247,10 +267,8 @@ Timing: logo at `ctaIn`, chip `+12`, line1 `+20`, line2 `+30`.
 **NEVER** close with CalloutOverlay (backdrop blur + white card). It breaks visual rhythm.
 
 ### Text overlay rules
-- Every state change → label it.
-- `Inter, white, fontWeight 600, fontSize 18–22px`
-- `background: rgba(14,16,41,0.6)`, `borderRadius: 6`, `padding: 6px 16px`
-- Position: `bottom: 80px`, centered.
+- **TextOverlay is disabled.** Do not add the `TextOverlay` component to any scene.
+- Every key action is named through the **SceneHeadline title** instead — the accent word carries the benefit qualifier for muted viewers.
 
 ---
 
@@ -274,7 +292,16 @@ If the user picks a track → run `node scripts/extract-bpm.js in/music/<track>`
 
 If no music → continue with the standard 25f minimum dwell rules.
 
-**Only after the music question is resolved**, read any files present in `in/` (HTML or screenshots), then extract: protagonist, 3–5-step journey, value moment, CTA. Map onto the 4-beat arc. If `in/` is empty, ask the user to drop their files in before continuing.
+**After the music question is resolved**, ask about the background:
+> « Quel fond veux-tu utiliser pour cette vidéo ?
+> - **Navy Flux** (`Piloc_BG_Navy_Flux`) — navy foncé avec motif flux subtil
+> - **Navy Logo** (`Piloc_BG_Navy_Logo`) — navy foncé avec watermark logo Piloc
+> - **Mist Quadri** (`Piloc_BG_Mist_Quadri`) — fond mist clair `#9DB8EE` (style contrasté)
+> - **Aucun** — fond `#0E1029` plat »
+
+If the user names a background in their initial prompt → skip this question and use the named one. If they say "aucun" or "flat" → use `#0E1029` with no SVG. Store the selected background slug for use in Phase 4.
+
+**Only after both music and background questions are resolved**, do a quick internal read of any files present in `in/` (HTML or screenshots) to understand the general scope — protagonist, rough journey, value moment. This is internal context only; no output to the user yet. Phase 1 will produce the formal written Story Map. If `in/` is empty, ask the user to drop their files in before continuing.
 
 ### PHASE 1 — ANALYZE
 **Input files are in `in/`** — look for `.html` files and/or screenshots (`.png`, `.jpg`) dropped there by the user.
@@ -295,9 +322,9 @@ Capture: real data verbatim, state machine, key interactions, brand tokens.
 Ignore: nav, breadcrumbs, footer, non-essential fields, empty states.
 
 ### PHASE 2 — STORYBOARD
-Read `references/output`. Produce full storyboard with:
+Read `references/output` and `references/piloc-brand-vocabulary.md`. Produce full storyboard with:
 - TL object (all named frame numbers)
-- Text overlay list
+- **Draft headline for every scene** (chip + title + accent) — written from brand vocabulary and screenshots, not invented. These drafts will be confirmed and locked in Phase 3.5 Section B.
 - Asset checklist
 
 ### PHASE 3 — APPROVAL
@@ -321,7 +348,57 @@ Write out the full `const TL` object with every frame value computed and justifi
 
 Verify: 25f min dwell, no dead zones >60f, in≈out fade duration, first element visible by `sceneIn+20`.
 
-#### B — Animation Spec Table
+#### B — Scene Headlines
+
+**Read `references/piloc-brand-vocabulary.md` before writing any line in this section.**
+
+For every scene, define the exact copy of `SceneHeadline` (chip + title + accent). These headlines refine and confirm the copy drafted in Phase 2 — they must be locked here before Phase 4 starts, never invented during coding. **No TextOverlay column — the title IS the message for muted viewers.**
+
+**For every scene, before writing a single word of copy, answer these three questions internally:**
+
+1. **Quelle est la douleur ?** — Qu'est-ce que l'opérateur vivait avant cette fonctionnalité ? Qu'est-ce qui lui coûtait du temps, de l'argent, ou de la confiance ? *(Ex : "Il relançait manuellement par email, sans savoir si l'usager avait vu le message.")*
+2. **Quelle est la valeur essentielle montrée dans cette scène ?** — En une phrase, quel est l'effet produit par ce que la caméra montre ? Pas la feature, l'effet. *(Ex : "L'opérateur voit en temps réel que la relance automatique a déclenché un paiement.")*
+3. **Quelle est la phrase que l'opérateur se dit en voyant ça ?** — Pas ce que le produit fait, ce que l'opérateur *ressent*. *(Ex : "Enfin, je n'ai plus à m'en occuper.")*
+
+Écrire le titre en **fusionnant Q2 et Q3** : la valeur concrète visible dans la frame (Q2), exprimée avec le registre émotionnel de l'opérateur (Q3). **Ni l'un ni l'autre seul ne suffit** — Q2 seul produit une description froide de feature ; Q3 seul produit une émotion vague sans ancrage. Le titre doit nommer un résultat directement observable à l'écran, et le faire ressentir comme un bénéfice pour l'opérateur. Si le titre s'applique à n'importe quelle frame, c'est qu'il est trop générique — refaire.
+
+Show your reasoning in a collapsed block before the final headline copy for each scene:
+```
+<!-- Pain: ... | Value: ... | Feeling: ... -->
+Chip: PILOC · RELANCES
+Title: Encaissez sans y penser,
+Accent: en automatique.
+```
+
+Do not use an example table as a model. Instead: read `references/piloc-brand-vocabulary.md`, study the screenshots in `in/`, and write only after completing the three questions above for each scene.
+
+**Headline writing rules (apply every time):**
+- **Chip:** always `PILOC · [FEATURE]`, uppercase, letterSpacing 2.2.
+- **Direct address — always speak to the client using "vous".** The title speaks directly to the operator, not about the product. Write "Relancez vos usagers." not "Relance automatique des usagers." The client must feel spoken to, not described at. This is the single most important rule for headline tone. *(Exception: CTA Hero-loop — see below.)*
+- **Explicit and sales-driven.** The title must do real selling work: name the benefit, the relief, or the outcome — not just the feature. A viewer who reads only the title must understand what's in it for them. If the title could be a label on a button, it's too weak. If it could be a headline in a sales email, it's right.
+- **Ground every headline in the screenshots and the brand vocabulary.** Look at what the screen actually shows — which pain does it resolve, which time does it save, which error does it prevent? The answer is the headline. Then verify the words against `references/piloc-brand-vocabulary.md` sections 4, 6, and 7. Never invent from thin air.
+- **Title (white part) — marketing verb phrase:** a benefit-oriented micro-sentence addressed to the client. The white part carries the verb + object (the action and its receiver), and the accent adds the qualifier or promise. Together they must read as one sentence a muted viewer grasps in 2 seconds. Pick verbs from the brand vocabulary (fluidifier, encaisser, automatiser, soulager, délivrer, libérer, reprendre…).
+- **Accent (mist `#9DB8EE`):** a short qualifier (2–4 words) that completes the title into a marketing claim — the precision, relief, or brand promise the scene delivers. Must express a benefit or outcome, never just name the feature shown. Ties back to tone pillars (Expert, Caring, Grounded, Energizing).
+- **Conciseness constraint:** title + accent combined must form one reading unit — around 6–8 words max. If it reads like a paragraph, cut. If it reads like a bare label, expand.
+- **Never** invent generic tech taglines ("Gérez facilement", "Solution complète", "Simplifiez vos flux"). These are forbidden — same rule as voiceover jargon.
+- **CTA scene** uses Hero-loop format (no SceneHeadline — just logo + chip + two-line kinetic title). The CTA tagline uses third-person brand voice: *"Le paiement au service de ceux qui servent."* — the "vous" rule does not apply here.
+
+**Headline quality gate — run this checklist on every title before locking it:**
+
+| # | Check | Pass condition |
+|---|-------|---------------|
+| 1 | **Lisibilité à froid** | Quelqu'un qui ne connaît pas Piloc comprend-il l'avantage en 2 secondes ? |
+| 2 | **Verbe d'action fort** | Le titre contient-il un verbe actif (encaisser, relancer, reprendre…) ? Pas un nom ("gestion", "automatisation"). |
+| 3 | **Adresse directe** | Le titre parle-t-il à l'opérateur ("vous" implicite ou explicite) ? Pas au produit, pas en troisième personne. |
+| 4 | **Zéro jargon interdit** | Aucun mot de la liste noire : "disruptif", "game-changer", "révolutionnaire", "solution", "plateforme", "gérez facilement". |
+| 5 | **Ton Piloc** | Le titre est-il Expert · Caring · Grounded · Energizing ? Pas startup tech, pas corporate froid, pas familier ou décontracté. |
+| 6 | **Titre + accent = une phrase** | Lus ensemble, forment-ils une seule phrase naturelle et complète ? Pas deux fragments indépendants. |
+| 7 | **Orthographe et ponctuation** | Pas de faute, majuscule en début de titre, ponctuation cohérente (virgule ou point, pas les deux). |
+| 8 | **Ancrage à l'écran** | Le titre nomme-t-il quelque chose de directement visible dans cette frame — un chiffre, une action, un état, un résultat ? Si le titre s'applique à n'importe quelle frame du projet, il est trop générique. |
+
+If any check fails → rewrite the headline before moving to the next scene. Do not present a headline that fails even one check.
+
+#### C — Animation Spec Table
 For every animated element, one line:
 ```
 | Element | Entry | Spring config | Exit |
@@ -331,7 +408,7 @@ For every animated element, one line:
 | TableRow (×5) | stagger 8f, translateY(6→0) | damping:24 stiffness:130 | — |
 ```
 
-#### C — Voiceover Map *(only if audio requested)*
+#### D — Voiceover Map *(only if audio requested)*
 ```
 | Scene | startMs | Text |
 |-------|---------|------|
@@ -340,10 +417,10 @@ For every animated element, one line:
 ```
 Compute `startMs = Math.round(TL.sceneIn / fps * 1000) + 300`.
 
-#### D — Cursor Waypoints *(only if cursor explicitly requested by user)*
+#### E — Cursor Waypoints *(only if cursor explicitly requested by user)*
 Skip this section by default. If the user has asked for a cursor, list each waypoint with x/y derived from layout dimensions. Screen space = layout space directly (no camera transform). See `references/patterns` #25.
 
-#### E — Remotion Rules Checklist
+#### F — Remotion Rules Checklist
 Based on what this video contains, list the exact files to read at Phase 4 start:
 ```
 MANDATORY (always):
@@ -359,19 +436,22 @@ CONDITIONAL:
   ✓ charts.md                  ← if SVG path animation
 ```
 
-#### F — Components & Data
+#### G — Components & Data
 - List every component to build (Badge, KpiCard, TableRow…)
 - List every data array with sample values
 - Identify any icon paths needed from HTML symbols
 
-#### G — Beat Grid *(only if music is set)*
-Use the template from the **MUSIC section** below. Fill track, BPM, beat/bar/phrase values, scene grid, and verify `totalDur / 30 ≥ 20s`.
+#### H — Beat Grid *(only if music is set)*
+Using the grid formula from **MUSIC → "How to apply BPM to the timeline"**, fill in:
+- Track name, BPM, `beat_frames`, `bar_frames`, `phrase_frames`
+- Scene grid: list each scene with its `sceneIn` snapped to the nearest `bar_frames` multiple
+- Verify `totalDur / 30 ≥ 20s` (LinkedIn minimum)
 
 ---
 
 ### PHASE 4 — EXECUTE
 
-**Start by reading Remotion rules.** Read every file listed in the Pre-plan Checklist (Section E) before writing any TSX. This is mandatory — not optional.
+**Start by reading Remotion rules.** Read every file listed in the Pre-plan Checklist (Section F) before writing any TSX. This is mandatory — not optional.
 
 Read `references/patterns` next.
 
@@ -389,6 +469,15 @@ Read `references/patterns` next.
 - **Cursor:** do NOT add a cursor by default. Use the button click animation (pattern #18) to show interactions. Add a cursor only if the user explicitly requests it.
 - **Button click animation:** any button which clicks as part of the user flow must have a spring scale animation. At the click frame, the button scales `1 → 0.93 → 1` using `spring({ frame: frame - clickAt, fps, config: { damping: 18, stiffness: 200 } })` mapped via `interpolate(sc, [0, 1], [1, 0.93])` on the down phase, then the button returns to 1 naturally. See `references/patterns` #18. Buttons that are NOT clicked in the flow (e.g. secondary nav) do not need this.
 
+**Brand copy rules (apply to every on-screen text and voiceover line):**
+Read `references/piloc-brand-vocabulary.md` before writing any text. Then apply:
+- **Headlines (H1):** pick from section 4 of the vocabulary, or compose using the same rhythm and vocabulary. Never invent generic taglines.
+- **Sublines / transition cards:** use secondary headlines from section 4, or use the "X, *pas Y*" rhetorical opposition pattern from section 6.
+- **Voiceover / script:** follow verified copylines in section 5 verbatim when the scene context matches. Mirror the tone pillars (section 7): Expert · Caring · Grounded · Energizing.
+- **Forbidden words:** "disruptif", "game-changer", "révolutionnaire", "notre solution de pointe", "leader du marché". See section 7.
+- **Audience language:** say "usagers" (not "clients"), "opérateurs" / "équipes" (not "users"). See section 11.
+- **CTA scene:** always close with the brand idea or promise. Preferred: *"Le paiement au service de ceux qui servent."* / *"Il y a un avant et un après Piloc."*
+
 **File write order:**
 1. Imports
 2. `const T` (design tokens)
@@ -398,7 +487,7 @@ Read `references/patterns` next.
 6. Data arrays
 7. Atomic components (Badge, KpiCard, ProgressBar…)
 8. Scene / layout components
-9. Overlay components (Cursor, TextOverlay…)
+9. Overlay components (Cursor — TextOverlay is disabled, do not add it)
 10. Main export
 11. Register in `src/index.tsx`
 
@@ -496,20 +585,48 @@ remotion/src/
 ├── index.tsx              ← Single registry — all compositions listed here
 ├── fonts.ts               ← waitForInter()
 ├── Icons.tsx              ← SVG icons + PilocLogo
-├── [Feature]Demo.tsx      ← One self-contained file per video
+└── videos/
+    └── {id}{variant} - {Name} - {YYYY-MM-DD}.tsx  ← One self-contained file per video/variant
 ```
 
-**Never read existing `[Feature]Demo.tsx` files in full.** They are large and not useful as reference — use `references/patterns` instead. Exception: if asked to modify an existing Demo file, read only the specific section needed (e.g., the `const TL` block, one component) — never the whole file.
+### Video ID & variant naming convention
 
-**After writing a new `[Feature]Demo.tsx`:** register it in `src/index.tsx` with `id` = exact filename without `.tsx` (e.g. `CampagnesDemo.tsx` → `id="CampagnesDemo"`). Never create a separate `index-*.tsx` file.
+Every video file follows this format: **`{number}{variant} - {Name} - {YYYY-MM-DD}.tsx`**
+
+- `{number}` — two-digit sequential ID assigned when the video is first created (e.g. `01`, `02`). The agent keeps track of the next available number in `memory/video-registry.md`.
+- `{variant}` — single uppercase letter, starting at `A`. Increments with each new variant of the same video (`A`, `B`, `C`…).
+- `{Name}` — short human-readable name matching the user's description (e.g. `Campagnes`, `Paiements`).
+- `{YYYY-MM-DD}` — date the file is produced (today's date).
+
+**Examples:**
+- First version of video 01: `01A - Campagnes - 2026-03-17.tsx`
+- Variant of that video: `01B - Campagnes - 2026-04-07.tsx`
+- A new unrelated video: `02A - Utilisateurs - 2026-04-07.tsx`
+
+**The composition ID in `src/index.tsx`** must be **exactly the filename without `.tsx`**: `id="01B - Campagnes - 2026-04-07"`. This ensures the user can reference the video by its exact file name when talking to the agent.
+
+**ID tracking:** After creating any new video or variant, update `memory/video-registry.md` with the new entry so future sessions know which IDs and variants exist.
+
+**Existing videos** (created before this convention) keep their original filenames. The new convention applies only to videos created or varied from this point onwards.
+
+---
+
+**When starting a new video:** do not read, open, or import any existing video TSX file — not as inspiration, not as a shortcut, not to copy components. Past videos are frozen artefacts, not templates. The sole code reference is `references/patterns`. Every new composition starts from scratch.
+
+**When producing a variant** (user says "modify `{id}` — {description}"): read the source TSX file **in full** before writing anything. Understand the existing `const TL`, components, and data arrays. Then create a new file with the next variant letter and today's date — never overwrite the source file. Apply only the changes the user described; do not refactor or improve unrelated sections.
+
+**After writing any video TSX file:** place it in `src/videos/`, then register it in `src/index.tsx` with the matching `id`. Import path: `"./videos/{filename without .tsx}"`. Never create a separate `index-*.tsx` file.
 
 ### Core rules
-- **No screenshots.** Build from scratch. HTML = data source only.
+- **No screenshot embeds in video.** Screenshots are input only — build all UI from scratch in TSX. HTML/screenshots = data source only.
 - **No browser APIs.** No `window`, `document`, `localStorage`.
 - **Authentic data.** Real values from HTML verbatim. No Lorem ipsum.
 - **One focal point per scene.** Table + detail panel = two scenes, not one.
 - **Inline styles only.** No Tailwind, no CSS classes.
+- **Scene vertical centering — absolute rule.** Every frame-based scene (`AbsoluteFill` with `display: flex, flexDirection: column`) must use `justifyContent: "center"`. Never use `justifyContent: "flex-start"` + a manual `paddingTop` to offset content — this produces top-aligned content with a dead zone at the bottom, inconsistent with all other scenes. If content seems too tall to fit centered, reduce `gap` or card sizes. Never change the alignment strategy.
 - **Flex tables.** Never `<table>/<tr>`. Use `<div>` rows with `COL_W` percentages.
+- **Table sizing — fit content, not flex.** A table card must never use `flex: 1` or `height: "100%"` if it has a fixed number of rows. Set it to a fixed or intrinsic height: `height: headerHeight + rowCount * rowHeight`. Using `flex: 1` stretches the card to fill remaining space, creating an oversized empty box when the row count is small. Only use `flex: 1` on a table that can have a variable number of rows filling the full viewport.
+- **`interpolate()` — always pass array literals as outputRange.** The signature is `interpolate(value, inputRange, outputRange)` where both range arguments are `number[]`. Passing bare scalars (e.g. `interpolate(v, [0,1], 0, 1)`) does not throw a TypeScript error but crashes at runtime. Always write `interpolate(v, [0, 1], [start, end])`.
 - **Font:** Use `waitForInter()` from `./fonts` via `delayRender`/`continueRender` in every composition. Do NOT use `@remotion/google-fonts` — this project uses a custom font loader.
 - **Icons:** Extract `<path d="...">` from HTML symbols into `Icons.tsx`. No emojis.
 - **Logo:** `<PilocLogo />` from `./Icons`. Never `<Img>`. Aspect ratio 3.44:1, props: `height` (default 34), `textColor`, `markColor`.
@@ -527,21 +644,27 @@ See `references/patterns` #12 for scene template.
 ### Render & output
 
 **File naming convention:**
-- LinkedIn 16:9 (1920×1080): `../out/YYYY-MM-DD-subject-li.mp4`
-- LinkedIn 1:1 square (1080×1080): `../out/YYYY-MM-DD-subject-li-sq.mp4`
-- YouTube (1920×1080): `../out/YYYY-MM-DD-subject-yt.mp4`
-- YouTube Shorts (1080×1920): `../out/YYYY-MM-DD-subject-yt-shorts.mp4`
+
+The MP4 filename mirrors the TSX filename exactly, with a platform suffix appended:
+- LinkedIn 16:9 (1920×1080): `../out/{id} - {Name} - {YYYY-MM-DD} - li.mp4`
+- LinkedIn 1:1 square (1080×1080): `../out/{id} - {Name} - {YYYY-MM-DD} - li-sq.mp4`
+- YouTube (1920×1080): `../out/{id} - {Name} - {YYYY-MM-DD} - yt.mp4`
+- YouTube Shorts (1080×1920): `../out/{id} - {Name} - {YYYY-MM-DD} - yt-shorts.mp4`
+
+**Examples** (for `01B - Campagnes - 2026-04-07.tsx`):
+- `../out/01B - Campagnes - 2026-04-07 - li.mp4`
+- `../out/01B - Campagnes - 2026-04-07 - li-sq.mp4`
 
 **Commands:**
 ```bash
 # Iteration renders (fast — use during Phase 5 feedback loop):
-npx remotion render src/index.tsx [CompositionId] ../out/YYYY-MM-DD-subject-li.mp4 --crf=18
+npx remotion render src/index.tsx "{CompositionId}" "../out/{id} - {Name} - {YYYY-MM-DD} - li.mp4" --crf=18 --scale=2
 # LinkedIn square (always produce alongside 16:9 for LinkedIn):
-npx remotion render src/index.tsx [CompositionId] ../out/YYYY-MM-DD-subject-li-sq.mp4 --crf=18
+npx remotion render src/index.tsx "{CompositionId}" "../out/{id} - {Name} - {YYYY-MM-DD} - li-sq.mp4" --crf=18 --scale=2
 
 # Final delivery renders (near-lossless — use only for the approved version):
-npx remotion render src/index.tsx [CompositionId] ../out/YYYY-MM-DD-subject-li.mp4 --crf=8
-npx remotion render src/index.tsx [CompositionId] ../out/YYYY-MM-DD-subject-li-sq.mp4 --crf=8
+npx remotion render src/index.tsx "{CompositionId}" "../out/{id} - {Name} - {YYYY-MM-DD} - li.mp4" --crf=8 --scale=2
+npx remotion render src/index.tsx "{CompositionId}" "../out/{id} - {Name} - {YYYY-MM-DD} - li-sq.mp4" --crf=8 --scale=2
 ```
 - **Always render automatically after Phase 4.** Announce before running. For LinkedIn, always run **both** the 16:9 and square renders.
 - **After render completes:** do not stop. Transition immediately to Phase 5.
@@ -568,17 +691,19 @@ See `references/patterns` #20 for full pattern. See `.agents/skills/remotion-bes
 
 ### Voiceover generation scripts
 
-Two scripts are available in `scripts/` for generating ElevenLabs voiceover for `CampagnesDemo`:
+Two scripts are available in `scripts/`:
 
 ```bash
 # Generate a single merged MP3 for the full composition:
 ELEVENLABS_API_KEY=sk_... node scripts/generate-voiceover.js
-# Output: out/voiceover-campagnes.mp3 — then copy to remotion/public/ and add <Audio> in the composition
+# Output: out/voiceover-[comp].mp3 — then copy to remotion/public/ and add <Audio> in the composition
 
 # Generate per-scene clips, sync with ffmpeg adelay, and mix into a final MP4:
 ELEVENLABS_API_KEY=sk_... node scripts/generate-voiceover-synced.js
-# Output: out/2026-03-15-campagnes-yt-final.mp4
+# Output: out/[YYYY-MM-DD]-[comp]-final.mp4
 ```
+
+**Note:** Both scripts were originally written for `CampagnesDemo`. Adapt paths and scene lists before using on a different composition.
 
 **When to use which:**
 - `generate-voiceover.js` → simple single-track voiceover, add as `<Audio>` inside the composition
@@ -694,6 +819,58 @@ Optional, recommended for music-synced videos. Install `@remotion/media-utils` (
 
 ---
 
+## BACKGROUND. BRANDED SVG BACKGROUNDS
+
+Three background files live in `references/`:
+
+| Slug | File | Base color | Character |
+|------|------|-----------|-----------|
+| `Navy_Flux` | `Piloc_BG_Navy_Flux.svg` | `#0E1029` | Lignes flux subtiles sur navy |
+| `Navy_Logo` | `Piloc_BG_Navy_Logo.svg` | `#0E1029` | Watermark logo Piloc sur navy |
+| `Mist_Quadri` | `Piloc_BG_Mist_Quadri.svg` | `#9DB8EE` | Motif quadrillé sur fond mist |
+
+### Setup — copy before render
+
+Before the render command (Phase 4), copy the selected SVG to `remotion/public/backgrounds/`:
+
+```bash
+cp references/Piloc_BG_<slug>.svg remotion/public/backgrounds/Piloc_BG_<slug>.svg
+```
+
+Create the folder if missing (`mkdir -p remotion/public/backgrounds`).
+
+### Usage in TSX
+
+In the main composition return, place the background as the **first layer** inside the root `<AbsoluteFill>`, before all scene layers:
+
+```tsx
+import { Img, staticFile, useVideoConfig } from "remotion";
+
+// Inside the composition:
+const { width, height } = useVideoConfig();
+
+// First layer — branded background (fills exact video dimensions, no distortion)
+<AbsoluteFill>
+  <Img
+    src={staticFile("backgrounds/Piloc_BG_<slug>.svg")}
+    style={{ width, height, objectFit: "fill" }}
+  />
+</AbsoluteFill>
+```
+
+**`objectFit: "fill"`** stretches the SVG to exact video dimensions (1920×1080, 1080×1080, etc.) without letterboxing. This is intentional — the SVGs are abstract patterns that read correctly at any aspect ratio.
+
+**When no background is selected** → omit the `<Img>` layer entirely; the root `<AbsoluteFill style={{ background: T.navy }}>` on the first scene is sufficient.
+
+### Mist_Quadri — color adjustments
+
+`Mist_Quadri` uses `#9DB8EE` as the base fill (not navy). When this background is active:
+- Cards use `rgba(255,255,255,0.97)` unchanged — they stay white and float well on mist.
+- Headline color stays white (`#FFFFFF`) — sufficient contrast on mist.
+- **Do not change T.navy** — leave design tokens untouched. The background layer handles the color.
+
+---
+
 ## CODE. CODE CONVENTIONS
 
 All working code is in `references/patterns`. This is the quick-reference index:
@@ -705,7 +882,7 @@ All working code is in `references/patterns`. This is the quick-reference index:
 | Flex table (rows, COL_W, cell factory) | 4 |
 | Animation patterns (slide, stagger, KPI count-up, spring pop, color lerp, row highlight, badge flip, progress bar, SVG chart) | 5 |
 | Callout overlay / CTA card | 6 |
-| TextOverlay component | 7 |
+| TextOverlay component *(disabled — do not use in any scene)* | 7 |
 | Cursor system (single click) | 8 |
 | Font loading | 9 |
 | Composition registration | 10 |

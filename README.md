@@ -13,7 +13,9 @@ Agent de création vidéo marketing automatisé pour Piloc. Tu fournis un protot
 | YouTube 16:9 | 1920×1080 | 45–90s | YouTube, démo longue forme |
 | YouTube Shorts | 1080×1920 | 15–60s | Shorts verticaux |
 
-**Style visuel :** dark navy (`#0E1029`), cartes blanches flottantes, typographie bold, palette accent bleue (`#9DB8EE`). Pas de screenshot — tout est reconstruit en TypeScript/Remotion depuis les données du prototype.
+**Style visuel :** dark navy (`#0E1029`), cartes blanches flottantes, typographie bold, palette accent bleue (`#9DB8EE`). Pas de screenshot — tout est reconstruit en TypeScript/Remotion depuis les données du prototype. Le vocabulaire de marque Piloc est utilisé dans les titres de frame.
+
+**Qualité d'image :** rendu haute définition, net même sur TV (CRF 8, 1920×1080 natif).
 
 **Voix off (optionnel) :** narration ElevenLabs générée scène par scène, synchronisée frame par frame avec les animations.
 
@@ -66,20 +68,59 @@ in/
 
 ### Le prompt de démarrage
 
-Lance l'agent (`claude`) et décris ton scénario en une ou deux phrases :
+Lance l'agent (`claude`) et utilise ce template :
 
 ```
-Crée une vidéo LinkedIn formt carré pour la fonctionnalité Campagnes.
-Je souhaite que tu mettes en valeur le parcours de création et le dashboard de suivu
-Musique : xxxx
-Voix off : Non.
+— BRIEF —
+Produit / Feature    : [Nom de la fonctionnalité]
+Ce que je veux montrer : [Ce que tu veux mettre en avant, contexte pour comprendre l'App]
+
+— FORMAT —
+Format       : [16:9 Horizontal | Carré]
+Background   : [Navy Logo | Navy Flux | Mist Quadri]
+
+— AUDIO —
+Voix-off     : [Oui | Non]
+Musique      : [Oui — Titre : ... | Non]
+
+— CONTENU —
+Ordre des scènes  : [Optionnel — liste les étapes dans l'ordre si tu en as un]
+Animations        : [Optionnel — laisser vide pour laisser l'agent choisir | ou précise : typewriter, compteur KPI, spring pop...]
+Fichiers dans in/ : [Aucun | Screenshots — précise ce qu'ils montrent | Fichier HTML]
 ```
 
-**Paramètres utiles à préciser :**
-- Plateforme cible : `LinkedIn` ou `YouTube`
-- Musique : `Oui` (l'agent liste les tracks disponibles) ou `Non`
-- Voix off : `Oui` (ElevenLabs) ou `Non`
-- Langue de la narration si voix off : `Français`
+**Backgrounds disponibles (`references/`) :**
+
+| Nom | Style | Usage recommandé |
+|-----|-------|-----------------|
+| `Navy Logo` *(défaut)* | Fond dark navy avec formes abstraites du logo Piloc | Toutes les vidéos, style sobre et identitaire |
+| `Navy Flux` | Fond dark navy avec lignes de flux dynamiques | Features tech, dashboards |
+| `Mist Quadri` | Fond bleu clair avec motifs géométriques blancs | Parcours mobiles, contenus grand public |
+
+---
+
+## Modification à la marge
+
+Tu peux modifier une vidéo déjà produite sans tout regénérer. Fournis le nom du fichier et décris ce que tu veux changer. Tu peux aussi déposer un screenshot dans le chat pour illustrer ton besoin.
+
+**Naming des fichiers générés :**
+
+Les vidéos sont enregistrées dans `out/` sous la forme `[id][lettre-variante]-[Feature]-[date].mp4`
+
+Exemple : `01A-Campagnes-20260409.mp4`
+
+- `01` = numéro de la vidéo
+- `A` = variante (A = première version, B = itération suivante…)
+- `Campagnes` = nom de la feature
+- `20260409` = date de génération
+
+**Comment faire :**
+1. Retrouve le nom du fichier dans le dossier `out/`
+2. Dans le chat : indique le **nom du fichier** + décris ce que tu veux modifier
+3. Tu peux joindre un **screenshot** pour illustrer ton besoin
+4. L'agent modifie les scènes concernées et re-rend la vidéo
+
+> Exemple : « Sur `01A-Campagnes-20260409`, je voudrais remplacer la scène 3 par une animation du tableau de suivi. Voici un screenshot pour t'aider à visualiser. »
 
 ---
 
@@ -324,3 +365,34 @@ L'agent vérifie l'environnement au démarrage de chaque conversation et t'indiq
 | [Prise en main](docs/01-prise-en-main.md) | Prompts, exemples, paramètres |
 | [Animations disponibles](docs/02-animations.md) | Catalogue complet |
 | [Structure du projet](docs/03-structure.md) | Fichiers, compositions, render |
+
+---
+
+## Partie technique
+
+### Logique de génération
+
+La production d'une vidéo suit 7 phases séquentielles — aucune ne peut être sautée :
+
+1. **Phase 0 — Intake** — l'agent liste les tracks disponibles dans `in/music/`, analyse le BPM si une musique est choisie, puis lit les fichiers du dossier `in/` pour extraire le scénario.
+2. **Phase 1 — Analyse** — lecture du prototype HTML ou des captures d'écran. L'agent produit une Story Map : protagoniste, flow en 3–5 étapes, moment de valeur, composants essentiels à construire.
+3. **Phase 2 — Storyboard** — arc narratif en 4 beats (Contexte → Walkthrough → Action clé → CTA), avec tous les timecodes nommés et la liste des overlays texte.
+4. **Phase 3 — Approbation** — l'agent s'arrête et attend la validation du storyboard avant d'écrire une seule ligne de code.
+5. **Phase 3.5 — Pré-plan technique** — calcul complet des timecodes (`const TL`), spec des animations, map voix off, checklist des règles Remotion à lire.
+6. **Phase 4 — Code + rendu** — génération du fichier `[Feature]Demo.tsx`, enregistrement dans `src/index.tsx`, puis rendu automatique (16:9 + carré 1:1 pour LinkedIn).
+7. **Phase 5 — Feedback** — boucle de validation en 5 couches (Narration, Design, Contenu, Rythme, Animation) avec re-render ciblé à chaque correction.
+
+### Règles du prompt system
+
+Les règles qui gouvernent le comportement de l'agent :
+
+- **Sécurité fichiers** — aucune suppression de fichier autorisée, quelle que soit la demande.
+- **Aucun screenshot** — le prototype HTML est une source de données, pas un modèle à reproduire. Tout est reconstruit en TypeScript/Remotion depuis zéro.
+- **Style Dark Navy exclusif** — fond `#0E1029`, cartes blanches flottantes, typographie bold. Pas de mode clair, pas de fond `#f8f9fa`. Exception : background `Mist Quadri` autorisé si demandé explicitement.
+- **Vocabulaire de marque** — les titres de frame utilisent le vocabulaire de marque Piloc (fichier `references/brand-vocabulary`).
+- **Qualité d'image** — rendu CRF 8, net même sur TV. Taille de police minimale 13px.
+- **Données authentiques** — les valeurs réelles du prototype (montants, noms, statuts, KPIs) sont utilisées telles quelles. Zéro Lorem ipsum.
+- **Taille de police minimale 13px** — aucun texte, label, badge ou légende ne peut descendre en dessous de 13px. Si le contenu ne tient pas, on réduit le nombre d'éléments, pas la police.
+- **Pas de curseur par défaut** — un curseur animé est ajouté uniquement si l'utilisateur le demande explicitement.
+- **Pas de code avant approbation du storyboard** — si l'utilisateur demande à sauter cette étape, l'agent explique le risque et propose un storyboard abrégé.
+- **L'agent ne modifie pas ses propres règles** — il documente les bugs dans Supabase et laisse la correction à Grégoire.

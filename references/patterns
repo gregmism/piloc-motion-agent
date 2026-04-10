@@ -9,47 +9,16 @@ Use these exact implementations. Do not reinvent unless there is a clear reason.
 
 ## 1. FILE BOILERPLATE
 
-### 1a. Light mode (Apple style — app demo on white/grey background)
+### Dark navy mode — the only style used in this project
 
-```ts
-import React from "react";
-import {
-  AbsoluteFill, continueRender, delayRender,
-  interpolate, spring, useCurrentFrame, useVideoConfig,
-} from "remotion";
-import { Icon } from "./Icons";
-import { waitForInter } from "./fonts";
-
-// ─── Design tokens ────────────────────────────────────────────────
-const T = {
-  bg: "#f8f9fa", surface: "#ffffff", sidebar: "#0e1029",
-  accent: "#9db8ee", mist: "#9DB8EE", text: "#112431", muted: "#6b7280",
-  light: "#a4afb7", border: "#d9dfe3",
-  success: "#329547", warning: "#ffb704", error: "#ec6369", info: "#0066cc",
-  font: "'Inter', sans-serif",
-};
-
-// ─── Timeline (30 fps) ────────────────────────────────────────────
-// [Add inline comments describing the narrative sequence]
-const TL = {
-  fadeIn:    0,
-  kpis:      20,
-  rows:      60,
-  camZoom:   120,
-  action:    180,
-  cta:       350,
-  end:       450,
-};
-```
-
-### 1b. Dark navy mode (feature launch / hero style — dark background, white floating cards)
+*(There is no light mode. Every Piloc video uses dark navy. Do not use `#f8f9fa` or any Apple-style background.)*
 
 ```ts
 // ─── Design tokens — dark navy ────────────────────────────────────
 const T = {
   navy:    "#0E1029",    // background — flat, no texture
-  mist:    "#9DB8EE",    // accent color (blue-grey)
-  solar:   "#FFB784",    // warm accent (click flash, CTA)
+  mist:    "#9DB8EE",    // accent color (blue-grey) — used for headline accent, chip border, mist overlays
+  solar:   "#FFB784",    // warm accent — use sparingly: button click flash (#18), CTA warm highlight only
   surface: "#ffffff",    // card background
   text:    "#112431",    // card text
   muted:   "#6b7280",    // secondary text

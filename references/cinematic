@@ -15,7 +15,7 @@ Use this file when the brief signals: cinematic, launch, phonk, glitch, neural n
 - **Glow/bloom**: All accent colors should have `filter: blur` glow layers behind them
  
 ### Typography
-- **Font family**: Space Grotesk, Inter, or Geist (via `@remotion/google-fonts`)
+- **Font family**: Inter (via `waitForInter()` from `./fonts` — do NOT use `@remotion/google-fonts`)
 - **Weight**: 700–900 (bold/black only — never regular weight for hero text)
 - **Style**: All-caps for hook and CTA, mixed case for body copy
 - **Size**: Oversized — hero text should fill 60–80% of screen width
@@ -33,8 +33,8 @@ Use this file when the brief signals: cinematic, launch, phonk, glitch, neural n
 | 4. Climax + CTA | Feature rapid-fire + logo + action | 70–90s | 2100–2700 | 🔥 Max again |
  
 ### Scene 1: Hook (0–15s | frames 0–450)
-- Opens on **pure black** — 0.5s silence before bass hit
-- First cut on beat drop — abstract neural network or particle field explodes into frame
+- Opens on **dark navy `#0E1029`** with brand or product visible at frame 0 — no pure black cold open (forbidden on LinkedIn; use `#080808` only for YouTube/standalone cinematic)
+- First cut on beat drop — bold kinetic typography or product reveal enters frame
 - 3–5 rapid cuts (1.5–2s each) of abstract 3D visuals
 - First text appears at beat hit #2 — bold claim, glitch entry
 - No product yet — pure energy, curiosity, pattern interrupt
@@ -108,14 +108,16 @@ const beatPulse = interpolate(beatPhase, [0, 0.1, 1], [1.02, 1, 1]);
  
 ### Glitch Entry (kinetic typography)
 ```ts
-// Glitch text in — offset + snap
-const glitchOffset = frame < 3 ? Math.random() * 8 - 4 : 0;
-const opacity = interpolate(frame, [0, 4], [0, 1]);
+// Glitch text in — deterministic offset
+// NEVER use Math.random() in Remotion — it is non-deterministic and causes flickering between frames.
+// Use frame-derived pseudo-noise instead:
+const glitchOffset = frame < 3 ? Math.sin(frame * 137.5) * 4 : 0;
+const opacity = interpolate(frame, [0, 4], [0, 1], { extrapolateRight: "clamp" });
 const translateX = frame < 3 ? glitchOffset : 0;
- 
+
 // Color channel split (RGB offset effect)
 // Render text 3 times: red, green, blue channels offset by 2–4px, fade out after 6 frames
-const channelOffset = interpolate(frame, [0, 6], [4, 0]);
+const channelOffset = interpolate(frame, [0, 6], [4, 0], { extrapolateRight: "clamp" });
 ```
  
 ### High-Velocity Slide (text entry)
@@ -238,99 +240,80 @@ warm rim lighting, charcoal and silver tones, cinematic, 4K, slow lateral drift,
  
 ---
  
-## Remotion Package Requirements
- 
-For cinematic launch videos, add these packages:
- 
-```bash
-npm install @remotion/motion-blur        # Motion blur on fast elements
-npm install @remotion/noise              # Procedural noise for particle effects
-npm install @remotion/google-fonts       # Space Grotesk / Inter
-npm install @remotion/shapes             # Geometric shape primitives
-npm install @remotion/three              # If using Three.js 3D in Remotion
-```
+## Remotion Package Notes
+
+This project uses a fixed set of packages. Do not install new packages without confirming with the user.
+
+Available already:
+- `remotion` — core (interpolate, spring, Audio, staticFile, Sequence, Series…)
+- `@remotion/media-utils` — audio visualization (`npx remotion add @remotion/media-utils` if not yet installed)
+
+Forbidden in this project:
+- `@remotion/google-fonts` — use `waitForInter()` from `./fonts` instead
+- `@remotion/motion-blur` — not installed
+- `@remotion/three` — 3D transforms are forbidden across the entire project
+- `@remotion/noise` — use `Math.sin(frame * seed)` for deterministic pseudo-noise
  
 ---
  
-## Component Architecture — Cinematic Launch
- 
+## File Architecture — Cinematic Launch
+
+Same single-file architecture as all Piloc videos. Everything lives in one `[Feature]Demo.tsx`.
+Internal scene components (Hook, Reveal, Climax…) are defined as local functions within the same file — not separate files.
+
 ```
-src/
-├── Root.tsx
-├── compositions/
-│   └── CinematicLaunch.tsx          # Sequence-based with crossfades
-├── scenes/
-│   ├── Hook.tsx                     # 0–450 frames, abstract + bass drop
-│   ├── Problem.tsx                  # 450–1200 frames, chaos visuals
-│   ├── Reveal.tsx                   # 1200–2100 frames, dashboard build
-│   └── Climax.tsx                   # 2100–2700 frames — uses Series for rapid cuts
-├── components/
-│   ├── GlitchText.tsx               # Kinetic glitch entry animation
-│   ├── ParticleField.tsx            # Neural network / particle background
-│   ├── DashboardAssembly.tsx        # UI panel staggered build
-│   ├── RimLitCard.tsx               # UI card with glow/rim light
-│   └── FeatureCut.tsx               # Single beat-sync cut: shot + bold word
-└── lib/
-    ├── animations.ts                # All interpolate/spring helpers
-    ├── beatSync.ts                  # BPM → frame math utilities
-    └── palette.ts                   # Color constants + glow helpers
+remotion/src/
+├── index.tsx                ← register composition here
+├── fonts.ts                 ← waitForInter()
+├── Icons.tsx                ← SVG icons + PilocLogo
+└── videos/
+    └── CinematicLaunch.tsx  ← single self-contained file
 ```
- 
-### Trailer composition pattern
- 
+
+### Scene structure pattern (within the single file)
+
 ```tsx
-// CinematicLaunch.tsx — top level uses Sequence (scenes can crossfade)
-export const CinematicLaunch = () => (
-  <AbsoluteFill style={{ background: '#080808' }}>
-    <Sequence from={0}    durationInFrames={460}><Hook /></Sequence>
-    <Sequence from={440}  durationInFrames={770}><Problem /></Sequence>   // 20-frame crossfade
-    <Sequence from={1195} durationInFrames={915}><Reveal /></Sequence>
-    <Sequence from={2100} durationInFrames={600}><Climax /></Sequence>
-    <Sequence from={0}    durationInFrames={2700}>
-      <Audio src={staticFile('track.mp3')} volume={1} />
-    </Sequence>
-  </AbsoluteFill>
-);
- 
-// Climax.tsx — rapid-fire montage uses Series (sequential, no gaps, no manual frame math)
+// Background: #0E1029 (navy) for LinkedIn — pure black cold open is forbidden.
+// #080808 is acceptable for YouTube-only cinematic standalone.
+import React from "react";
+import { AbsoluteFill, Audio, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { PilocLogo } from "../Icons";
+import { waitForInter } from "../fonts";
+
+const T = {
+  navy: "#0E1029", mist: "#9DB8EE", surface: "#ffffff",
+  text: "#112431", muted: "#6b7280", font: "'Inter', sans-serif",
+};
+
+// All scene components are local functions — no separate files.
+const HookScene = ({ frame }: { frame: number }) => {
+  if (frame < TL.hookIn || frame >= TL.hookOut) return null;
+  const f = frame - TL.hookIn;
+  // ... animations using f (local frame)
+  return <AbsoluteFill style={{ background: T.navy }}>...</AbsoluteFill>;
+};
+
+// Rapid-fire montage — use Series for clean beat-sync cuts (no manual frame math)
 const FEATURE_CUTS = [
-  { label: 'FASTER', shot: 'kpi-dashboard' },
-  { label: 'SMARTER', shot: 'neural-abstract' },
-  { label: 'AUTOMATED', shot: 'workflow' },
-  { label: 'UNIFIED', shot: 'team-feed' },
-  { label: 'POWERFUL', shot: 'particle-burst' },
-  { label: 'PRECISE', shot: 'alert-resolved' },
-  { label: 'EVERYWHERE', shot: 'multi-device' },
-  { label: 'YOURS', shot: 'logo-close' },
+  { label: "ENCAISSEZ", subline: "sans friction" },
+  { label: "RELANCEZ",  subline: "automatiquement" },
+  { label: "PILOTEZ",   subline: "en temps réel" },
 ];
 const CUT_FRAMES = 45; // 1.5s @ 30fps — snaps to 140BPM beat
- 
-export const Climax = () => (
-  <AbsoluteFill>
-    <Series>
-      {FEATURE_CUTS.map(({ label, shot }) => (
-        <Series.Sequence key={label} durationInFrames={CUT_FRAMES}>
-          <FeatureCut label={label} shot={shot} />
-        </Series.Sequence>
-      ))}
-    </Series>
-    <Sequence from={FEATURE_CUTS.length * CUT_FRAMES} durationInFrames={240}>
-      <LogoAssembly />
-    </Sequence>
-  </AbsoluteFill>
-);
-```
- 
----
- 
-## Production Notes Template — Cinematic Launch
- 
-```
-Music: Phonk or dark electronic, 140–160 BPM, heavy bass drop at 0:00, builds through problem,
-       peak energy at reveal (0:40), controlled drop for CTA hold
-Pacing: Fast (2s) → Medium (4s) → Fast (1.5s) — mirrors energy arc
-Color: Black/charcoal base, electric blue primary, purple secondary — NO warm tones
-Style: Cinematic AI launch — polished, no UGC elements, premium post-production feel
-Motion blur: On all fast camera moves and whip pans
-Glow: All accent UI elements carry drop-shadow glow at 8–16px
-```
+
+// Main export — frame-based architecture, all scenes as AbsoluteFill layers
+export const CinematicLaunch = () => {
+  const { fps } = useVideoConfig();
+  const frame = useCurrentFrame();
+  return (
+    <AbsoluteFill style={{ background: T.navy }}>
+      <Audio src={staticFile("music/track.mp3")} volume={0.45} startFrom={0} />
+      <HookScene frame={frame} />
+      <ProblemScene frame={frame} />
+      <RevealScene frame={frame} />
+      <ClimaxScene frame={frame} />
+      <CtaScene frame={frame} />
+    </AbsoluteFill>
+  );
+};
+````
