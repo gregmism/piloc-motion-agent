@@ -335,10 +335,16 @@ npx remotion render src/index.tsx [CompositionId] ../out/ma-video.mp4 --crf=8
 
 ```bash
 cd piloc-motion-agent
+git stash
+git clean -fd memory/ references/ scripts/
 git pull
 ```
 
-Met à jour les instructions de l'agent, les patterns de code et les règles Remotion. Tes fichiers (`in/`, `out/`, `.env`) ne sont jamais touchés.
+- `git stash` — met de côté tes éventuelles modifications locales
+- `git clean` — supprime les fichiers locaux non suivis qui bloqueraient la mise à jour
+- `git pull` — récupère la dernière version
+
+Tes fichiers (`in/`, `out/`, `.env`) ne sont jamais touchés.
 
 ---
 
